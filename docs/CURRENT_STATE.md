@@ -1,4 +1,4 @@
-# Current State - After Status Dashboard Implementation
+# Current State - After Status Dashboard & Sonarr Integration
 
 ## What's Working ✅
 - Frontend displays at http://localhost:3000
@@ -14,25 +14,37 @@
 - Service logos with gradient backgrounds
 - Individual service refresh in dropdown
 - PostgreSQL persistence fully working
-- **NEW: Status Dashboard with aggregate stats**
-- **NEW: Service health monitoring visualization**
-- **NEW: Storage distribution charts**
-- **NEW: Quick stats cards for system overview**
+- Status Dashboard with aggregate stats
+- Service health monitoring visualization
+- Storage distribution charts
+- Quick stats cards for system overview
+- **NEW: Sonarr integration complete**
+- **NEW: Service type filtering on Status tab**
+- **NEW: Refresh indicator with timestamp**
 
 ## Backend Endpoints
 - POST /api/services - Add new service
 - GET /api/services - List all services  
-- PUT /api/services/:id - Update service ✅ Fixed enabled field
-- DELETE /api/services/:id - Delete service ✅ Now used
+- PUT /api/services/:id - Update service
+- DELETE /api/services/:id - Delete service
 - POST /api/services/test - Test connection
-- GET /api/:serviceType/:serviceId/stats - Get service stats
+- GET /api/radarr/:id/stats - Get Radarr stats
+- GET /api/sonarr/:id/stats - Get Sonarr stats ✅ NEW
+
+## Services Implemented
+- ✅ Radarr (movies)
+- ✅ Sonarr (TV series)
+- ⏳ Bazarr (subtitles) - skeleton exists
+- ⏳ Lidarr (music) - skeleton exists
+- ⏳ Readarr (ebooks) - skeleton exists
+- ⏳ Prowlarr (indexers) - skeleton exists
 
 ## UI Components Status
 - ServiceCard: ✅ Complete with options menu, logos, stats
-- AddServiceModal: ✅ Working with logo preview
+- AddServiceModal: ✅ Working with all *arr services
 - EditServiceModal: ✅ Complete with enable/disable
 - ServicesTab: ✅ Shows count, refresh all, modals
-- StatusTab: ✅ NEW - Aggregate stats, health monitoring, storage viz
+- StatusTab: ✅ Aggregate stats, filtering, refresh
 - Header: ✅ Shows online/total services
 - TabNavigation: ✅ Working
 - Logs Tab: ⚠️ Basic placeholder
@@ -41,42 +53,31 @@
 
 ## Database Status
 - PostgreSQL: ✅ Connected and working
-- Schema: ✅ services and service_stats tables created
+- Schema: ✅ services and service_stats tables
 - Persistence: ✅ Services saved between restarts
-- Stats caching: ✅ Working
+- Stats caching: ✅ Working for all services
 
-## What's NOT Working ❌
-- Logs tab (still placeholder)
-- Users tab (still placeholder)
-- Service auto-discovery
-- Settings tab needs real functionality
-- Activity timeline/history in Status tab
-- Download queue monitoring
-
-## Recent Changes (Status Dashboard)
-- Created StatusTab component with modular sub-components
-- Added aggregate statistics calculation
-- Implemented service health percentage
-- Added storage distribution visualization
-- Created quick stats cards (health, media, missing, storage)
-- Service status grid with online/offline indicators
-- Disk usage bars with service-specific gradients
-- Respects enabled/disabled service states
+## Recent Session Achievements
+1. Built complete Status Dashboard
+2. Added Sonarr integration module
+3. Implemented service type filtering
+4. Added refresh functionality
+5. Enhanced empty states
 
 ## Next Immediate Tasks
-1. Add activity timeline to Status Dashboard
-2. Implement download queue monitoring
-3. Service auto-discovery feature
-4. Add more service types (Plex, Jellyfin, etc)
+1. Implement remaining *arr services (Bazarr, Lidarr, etc)
+2. Add activity timeline to Status Dashboard
+3. Implement download queue monitoring
+4. Service auto-discovery feature
 5. Create logs viewer with service filtering
 6. Add user management
-7. Export/Import configuration feature
-8. Real-time notifications for service status changes
+7. Export/Import configuration
+8. Real-time notifications
 
-## Technical Debt
-- Error handling could be more robust
-- No toast notifications for actions
-- No loading skeletons during data fetch
-- Settings tab needs real functionality
-- Need charts library for better visualizations (Chart.js or Recharts)
-- Consider adding WebSocket for real-time updates
+## Quick Start Commands
+cd /home/zach/projects/docker-dashboard && pwd
+docker-compose ps
+docker-compose logs -f
+git status
+
+Last Updated: Session with Status Dashboard & Sonarr
