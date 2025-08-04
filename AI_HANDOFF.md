@@ -6,18 +6,16 @@
 - Purpose: Modular Docker dashboard
 
 ## Current State
-- Framework: Established
-- First Module: Radarr (ready to build)
-- Documentation: Structure complete
+- Beautiful NVIDIA-green UI: COMPLETE
+- Component architecture: ESTABLISHED
+- Backend skeleton: READY
+- First integration: Radarr (ready to connect)
 
-## Next Major Tasks
-1. Create docker-compose.yml
-2. Build backend API skeleton
-3. Create React frontend shell
-4. Implement first Radarr integration
+## Next Task
+Connect the Services tab to real Radarr API
 
-## Remember
-- User prefers action over questions
-- Keep modules independent
-- Full paths in commands
-- Update MASTER_INVENTORY.md as we learn
+## Key Docs to Read
+- docs/STANDARD_SESSION_RULES.md
+- docs/TECHNICAL_CONTEXT.md
+- docs/CURRENT_STATE.md
+- docs/DESIGN_SYSTEM.md
