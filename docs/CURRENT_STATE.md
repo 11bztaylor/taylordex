@@ -1,37 +1,51 @@
-# Current State - As of Last Session
+# Current State - After Backend Integration
 
 ## What's Working ✅
 - Frontend displays at http://localhost:3000
 - Beautiful UI with NVIDIA-green theme
 - Component architecture established
-- Services tab shows mock data
-- Tab navigation works
-- Dark theme implemented
+- **NEW: Full backend API integration**
+- **NEW: ServiceCard fetches real stats**
+- **NEW: Add Service Modal created**
+- **NEW: Backend connects to Radarr/Sonarr**
+- **NEW: Service management (add/edit/delete)**
+
+## Backend Endpoints Created
+- POST /api/services - Add new service
+- GET /api/services - List all services
+- PUT /api/services/:id - Update service
+- DELETE /api/services/:id - Delete service
+- GET /api/:serviceType/:serviceId/stats - Get service stats
+
+## What's Partially Working ⚠️
+- Services stored in memory (not database yet)
+- Basic error handling implemented
+- Stats fetching works for *arr services
 
 ## What's NOT Working ❌
-- No backend connections yet
-- Add Service button does nothing
-- Status tab is empty
-- No real Docker data
-- Settings/Logs/Users tabs are placeholders
+- Database persistence (using in-memory)
+- Logs/Users/Settings tabs still placeholders
+- Service auto-discovery
+- Advanced error recovery
 
-## Recent Changes (Last Session)
-- Fixed Tailwind CSS (added missing configs)
-- Refactored App.jsx from 400 lines to modular components
-- Added component file structure
-- Implemented glassmorphic UI design
-- Created mock service cards
+## Recent Changes (Backend Integration Session)
+- Created backend/src/ structure
+- Added service controllers
+- Implemented CRUD operations
+- Connected frontend to backend
+- Added AddServiceModal component
+- Loading states in ServiceCard
 
-## Immediate TODOs
-1. Install Tailwind in container: docker-compose exec frontend npm install -D tailwindcss postcss autoprefixer
-2. Build Status tab components
-3. Connect Services to backend API
-4. Implement Add Service modal
+## Next Immediate Tasks
+1. Add PostgreSQL persistence
+2. Create database migrations
+3. Implement service auto-discovery
+4. Build Status dashboard tab
+5. Add comprehensive error handling
 
-## File Status Check
-- ✅ tailwind.config.js - Created
-- ✅ postcss.config.js - Created  
-- ✅ Component structure - Created
-- ❌ Backend API endpoints - Not started
-- ❌ Database schema - Not created
-- ❌ Service integration - Mock data only
+## Files Modified
+- backend/index.js - Added all routes
+- backend/src/controllers/* - Service logic
+- ServiceCard.jsx - Stats fetching
+- ServicesTab.jsx - Modal integration
+- App.jsx - State management
