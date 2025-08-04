@@ -75,3 +75,35 @@ When starting ANY new session, you MUST upload these files:
 - Optimize logos (resize to ~120px)
 - Add theme switching
 - Continue service integrations
+
+## Latest Session Updates (August 4, 2025 - Evening Session #2)
+
+### Major Achievement: Enhanced Data Collection System
+- Built comprehensive data collection for all 4 services
+- Status Dashboard now has 3 views: Overview, Activity, Performance
+- Fixed Radarr queue parsing (was showing "Unknown" titles)
+- All services collecting 10x more useful data
+
+### Technical Implementation:
+- Each service module enhanced with parallel API calls
+- Modular DataCollector utility created
+- Graceful error handling throughout
+- 30-second auto-refresh on all data
+
+### What Works:
+- Radarr: Full queue details, recent additions, quality breakdown
+- Sonarr: Basic enhanced stats (needs queue fix)
+- Plex: Would show streams/bandwidth (needs token)
+- Prowlarr: Full indexer performance metrics
+
+### Next Session Priority:
+- Fix Sonarr queue title parsing (showing undefined)
+- Add Sonarr calendar/schedule features
+- Get Plex working with proper token
+- Implement comprehensive status API endpoint
+
+### Files Modified This Session:
+- backend/src/modules/*/service.js (all services)
+- frontend/src/components/status/StatusTab.jsx
+- backend/src/utils/dataCollector.js (new)
+- docs/DRAG_AND_DROP_DASHBOARD_CUSTOM_PLAN.md (new)

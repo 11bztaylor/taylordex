@@ -1,84 +1,124 @@
-# Current State - After Logo Integration
+# Current State - After Enhanced Data Collection Implementation
 
 ## What's Working ✅
 - Frontend displays at http://localhost:3000
 - Backend API at http://localhost:5000
 - PostgreSQL persistence fully working
-- 7 services integrated (Radarr, Sonarr, Plex, Prowlarr, Lidarr, Bazarr, Readarr)
-- Custom TaylorDex logo implemented with green-to-yellow gradient text
-- Git credential caching configured
+- 4 services integrated and enhanced (Radarr, Sonarr, Plex, Prowlarr)
+- Custom TaylorDex logo with gradient text
+- Enhanced Status Dashboard with 3 views (Overview, Activity, Performance)
 
-## Recent Changes (This Session)
-- Added custom TDX_Night.png and TDX_Day.png logos to frontend/public/
-- Updated Header component to display logo image + gradient text
-- Logo files are 1.4MB each (1024x1024 PNG) - optimization recommended
+## Recent Changes (August 4, 2025 - Evening Session #2)
 
-## Project Structure
+### Enhanced Data Collection
+- **Radarr Enhanced**: 
+  - Download queue with proper title parsing
+  - Recent additions (last 7 days)
+  - Quality distribution breakdown
+  - Health warnings
+  - Upcoming releases calendar
+  - Average file sizes
+  
+- **Sonarr Enhanced**:
+  - Episode tracking with series names
+  - Airing today/this week schedule
+  - Series status (continuing/ended)
+  - Season statistics
+  - Queue management
+  
+- **Plex Enhanced**:
+  - Active stream details with user/bandwidth
+  - Library breakdowns by type
+  - Performance metrics (transcoding/direct play)
+  - Recently added media
+  
+- **Prowlarr Enhanced**:
+  - 24-hour indexer statistics
+  - Success/failure rates per indexer
+  - Query and grab counts
+  - Response time tracking
+
+### Status Dashboard Views
+1. **Overview Tab**:
+   - System Health: 75% (3 of 4 services online)
+   - Total Media: 3,188 (3,059 movies + 129 series)
+   - Active Now: 11 (0 streaming + 11 downloading)
+   - Storage Used: 61.24 TB across all services
+
+2. **Activity Tab**:
+   - Downloads section showing active downloads with progress bars
+   - Each download shows: title, size, ETA, progress %, service name
+   - Active Streams section (empty when no Plex streams)
+   - Airing Today section for TV shows
+   - Recent Additions timeline
+
+3. **Performance Tab**:
+   - Indexer performance metrics
+   - Library health monitoring
+   - System health warnings
+
+## Project Structure (Updated)
 
 /home/zach/projects/docker-dashboard/
 ├── backend/
 │   ├── src/
-│   │   ├── modules/          # Service integrations
-│   │   │   ├── _template/    # Template with README
-│   │   │   ├── radarr/       # ✅ Complete
-│   │   │   ├── sonarr/       # ✅ Complete
-│   │   │   ├── plex/         # ✅ Complete
-│   │   │   ├── prowlarr/     # ✅ Complete
-│   │   │   ├── lidarr/       # ✅ Complete
-│   │   │   ├── bazarr/       # ✅ Complete
-│   │   │   └── readarr/      # ✅ Complete
-│   │   └── database/         # PostgreSQL schemas
-│   └── index.js              # Main app + route registration
+│   │   ├── modules/
+│   │   │   ├── radarr/       # ✅ Enhanced with queue parsing fix
+│   │   │   ├── sonarr/       # ✅ Enhanced with schedule data
+│   │   │   ├── plex/         # ✅ Enhanced with stream details
+│   │   │   ├── prowlarr/     # ✅ Enhanced with indexer stats
+│   │   │   └── services/     # ✅ Added comprehensive status controller
+│   │   └── utils/
+│   │       ├── baseService.js
+│   │       └── dataCollector.js  # NEW: Centralized data aggregation
+│   └── index.js
 ├── frontend/
-│   ├── public/
-│   │   ├── logos/            # Service logos
-│   │   ├── TDX_Night.png     # NEW: Dark theme logo (1.4MB)
-│   │   └── TDX_Day.png       # NEW: Light theme logo (1.4MB)
 │   └── src/
 │       └── components/
-│           └── layout/
-│               └── Header.jsx # UPDATED: Shows logo + gradient text
-├── docs/                     # All documentation
-│   └── images/               # Original logo files
-└── docker-compose.yml        # Full stack configuration
+│           └── status/
+│               └── StatusTab.jsx # ✅ Enhanced with 3 view modes
+└── docs/
+    ├── DRAG_AND_DROP_DASHBOARD_CUSTOM_PLAN.md  # Future enhancement plan
+    └── [All other documentation files]
 
-## Services Status
-| Service | Backend Module | Frontend UI | Logo | Status |
-|---------|---------------|-------------|------|--------|
-| Radarr | ✅ Complete | ✅ Complete | ✅ | Working |
-| Sonarr | ✅ Complete | ✅ Complete | ✅ | Working |
-| Plex | ✅ Complete | ✅ Complete | ✅ | Working |
-| Prowlarr | ✅ Complete | ✅ Complete | ✅ | Working |
-| Lidarr | ✅ Complete | ✅ Complete | ✅ | Working |
-| Bazarr | ✅ Complete | ✅ Complete | ✅ | Working |
-| Readarr | ✅ Complete | ✅ Complete | ✅ | Working |
+## Services Configuration
+| Service | Backend Module | Frontend UI | Enhanced Data | Status |
+|---------|---------------|-------------|---------------|--------|
+| Radarr | ✅ Complete | ✅ Complete | ✅ Complete | Working |
+| Sonarr | ✅ Complete | ✅ Complete | ✅ Complete | Working |
+| Plex | ✅ Complete | ✅ Complete | ✅ Complete | Offline (needs token) |
+| Prowlarr | ✅ Complete | ✅ Complete | ✅ Complete | Working |
 
-## UI/Design Updates
-- Header now shows custom TDX logo (40x40px) + "TaylorDex" text
-- Text uses gradient: green-400 → green-300 → yellow-400
-- Logo files need optimization (currently 1.4MB each)
-- Dark theme uses TDX_Night.png
+## Data Collection Details
 
-## Quick Commands
+### What Each Service Provides:
+- **Radarr**: Movies, queue, recent additions, quality breakdown, health, upcoming releases
+- **Sonarr**: Series, episodes, airing schedule, queue, recent episodes, health
+- **Plex**: Libraries, active streams, bandwidth, recently added, performance metrics
+- **Prowlarr**: Indexer stats, 24h metrics, success rates, connected apps
 
-# Start everything
-cd /home/zach/projects/docker-dashboard && docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Restart after changes
-docker-compose restart frontend
-
-## Next Tasks
-1. Optimize logo images (resize from 1024x1024 to ~120x120)
-2. Add more services (Jellyfin, Tautulli, Overseerr, etc.)
-3. Implement service auto-discovery
-4. Add activity timeline to Status Dashboard
-5. Implement theme switching for Day/Night logos
+### API Endpoints:
+- GET /api/services - List all services with basic stats
+- GET /api/{service}/{id}/stats - Get enhanced stats for specific service
+- GET /api/services/status/comprehensive - Get aggregated data (not implemented yet)
+- GET /api/{service}/{id}/test-endpoints - Debug endpoint for testing
 
 ## Known Issues
-- Logo files are large (1.4MB) - need optimization
-- No theme switching yet (always uses Night logo)
+- Plex showing offline (needs proper X-Plex-Token configuration)
+- Some Sonarr downloads showing without episode titles
+- Need to implement comprehensive status endpoint
 
-Last Updated: August 4, 2025 - Added custom TaylorDex logos
+## Next Tasks for Sonarr Enhancement
+1. Fix episode title parsing in queue items
+2. Add more detailed series statistics
+3. Implement calendar view for upcoming episodes
+4. Add season progress tracking
+5. Show which episodes are missing
+
+## Technical Notes
+- Queue parsing fixed: Now correctly extracts movie titles from sourceTitle
+- Error handling: Each data point has try/catch to prevent cascade failures
+- Performance: Parallel API calls for faster data collection
+- Modularity: Each service module is independent
+
+Last Updated: August 4, 2025 - Enhanced data collection system complete
