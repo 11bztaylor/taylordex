@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Header from './components/layout/Header';
 import TabNavigation from './components/layout/TabNavigation';
 import ServicesTab from './components/services/ServicesTab';
+import StatusTab from './components/status/StatusTab';
 
 function App() {
   const [activeTab, setActiveTab] = useState('services');
@@ -89,27 +90,7 @@ function App() {
         )}
         
         {activeTab === 'status' && (
-          <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
-            <h2 className="text-xl font-semibold mb-4 text-green-400">Status Dashboard</h2>
-            {services.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-                {services.map(service => (
-                  <div key={service.id} className={`bg-gray-800/50 rounded-lg p-4 ${service.enabled === false ? 'opacity-50' : ''}`}>
-                    <h3 className="font-medium text-white">{service.name}</h3>
-                    <p className="text-sm text-gray-400">{service.type}</p>
-                    <p className="text-xs text-gray-500 mt-2">
-                      {service.host}:{service.port}
-                    </p>
-                    {service.enabled === false && (
-                      <span className="text-xs text-amber-400 mt-1">Disabled</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-400">No services configured yet.</p>
-            )}
-          </div>
+          <StatusTab services={services} />
         )}
         
         {activeTab === 'logs' && (
