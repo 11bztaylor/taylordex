@@ -6,17 +6,30 @@ const Header = ({ currentUser, onlineServices, totalServices }) => {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            {/* Logo with green gradient */}
-            <div className="flex items-center space-x-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-green-600 rounded-lg flex items-center justify-center shadow-lg shadow-green-500/30">
+            {/* Logo with TDX image AND text */}
+            <div className="flex items-center space-x-3">
+              <img 
+                src="/TDX_Night.png" 
+                alt="TaylorDex Logo" 
+                className="h-10 w-10 object-contain hover:opacity-90 transition-opacity cursor-pointer"
+                title="TaylorDex - Docker Dashboard"
+                onError={(e) => {
+                  // Fallback to letter logo if image fails
+                  e.target.style.display = 'none';
+                  document.getElementById('fallback-logo-icon').style.display = 'flex';
+                }}
+              />
+              {/* Fallback logo icon (hidden by default) */}
+              <div id="fallback-logo-icon" className="hidden w-10 h-10 bg-gradient-to-br from-green-400 to-yellow-500 rounded-lg items-center justify-center shadow-lg shadow-green-500/30">
                 <span className="text-xl font-bold text-gray-900">T</span>
               </div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-green-400 to-green-300 bg-clip-text text-transparent">
+              {/* TaylorDex text with green to yellow gradient */}
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-green-400 via-green-300 to-yellow-400 bg-clip-text text-transparent">
                 TaylorDex
               </h1>
             </div>
             {/* Status indicator */}
-            <div className="flex items-center space-x-2 text-sm">
+            <div className="flex items-center space-x-2 text-sm ml-2">
               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-sm shadow-green-400"></div>
               <span className="text-gray-400">{onlineServices}/{totalServices} Services Online</span>
             </div>
