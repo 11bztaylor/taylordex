@@ -10,3 +10,11 @@ router.delete('/:id', servicesController.deleteService);
 router.post('/test', servicesController.testService);
 
 module.exports = router;
+
+// Import the status controller
+const statusController = require("./statusController");
+
+// Add these routes at the end of the file, before module.exports
+router.get("/status/comprehensive", statusController.getComprehensiveStatus);
+router.get("/status/history/:serviceId", statusController.getServiceHistory);
+
