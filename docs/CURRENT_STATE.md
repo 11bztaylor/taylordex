@@ -81,3 +81,27 @@ docker-compose logs -f
 git status
 
 Last Updated: Session with Status Dashboard & Sonarr
+
+## Modular Service Architecture
+
+Each service is completely isolated in its own module:
+- Service logic in service.js
+- API routes in routes.js (REQUIRED!)
+- Optional controller.js for complex operations
+- Dynamic loading - no registration needed except routes
+
+### Currently Implemented Services
+- ✅ Radarr (movies)
+- ✅ Sonarr (TV series)  
+- ✅ Prowlarr (indexers)
+- ✅ Plex (media server)
+- ⏳ Bazarr (subtitles) - skeleton exists
+- ⏳ Lidarr (music) - skeleton exists
+- ⏳ Readarr (ebooks) - skeleton exists
+
+## Lessons Learned
+1. Always create routes.js - backend crashes without it
+2. Update both AddServiceModal AND ServiceCard for frontend
+3. Use curl for logos, wget might save HTML
+4. Test services individually before committing
+5. Routes must be registered in backend/index.js
