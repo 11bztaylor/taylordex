@@ -14,12 +14,12 @@ const AddServiceModal = ({ isOpen, onClose, onServiceAdded }) => {
   const [error, setError] = useState(null);
 
   const serviceTypes = [
-    { value: 'radarr', label: 'Radarr', defaultPort: 7878 },
-    { value: 'sonarr', label: 'Sonarr', defaultPort: 8989 },
-    { value: 'bazarr', label: 'Bazarr', defaultPort: 6767 },
-    { value: 'lidarr', label: 'Lidarr', defaultPort: 8686 },
-    { value: 'readarr', label: 'Readarr', defaultPort: 8787 },
-    { value: 'prowlarr', label: 'Prowlarr', defaultPort: 9696 }
+    { value: 'radarr', label: 'Radarr', defaultPort: 7878, icon: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/radarr.svg' },
+    { value: 'sonarr', label: 'Sonarr', defaultPort: 8989, icon: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/sonarr.svg' },
+    { value: 'bazarr', label: 'Bazarr', defaultPort: 6767, icon: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/bazarr.svg' },
+    { value: 'lidarr', label: 'Lidarr', defaultPort: 8686, icon: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/lidarr.svg' },
+    { value: 'readarr', label: 'Readarr', defaultPort: 8787, icon: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/readarr.svg' },
+    { value: 'prowlarr', label: 'Prowlarr', defaultPort: 9696, icon: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/prowlarr.svg' }
   ];
 
   const handleTypeChange = (type) => {
@@ -78,10 +78,8 @@ const AddServiceModal = ({ isOpen, onClose, onServiceAdded }) => {
       const result = await response.json();
       
       if (result.success) {
-        // Success! Close modal and refresh
         onServiceAdded();
         onClose();
-        // Reset form
         setFormData({
           name: '',
           type: 'radarr',
@@ -102,7 +100,6 @@ const AddServiceModal = ({ isOpen, onClose, onServiceAdded }) => {
   };
 
   const handleClose = () => {
-    // Reset form when closing
     setFormData({
       name: '',
       type: 'radarr',
@@ -116,6 +113,8 @@ const AddServiceModal = ({ isOpen, onClose, onServiceAdded }) => {
   };
 
   if (!isOpen) return null;
+
+  const selectedService = serviceTypes.find(s => s.value === formData.type);
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
@@ -137,15 +136,26 @@ const AddServiceModal = ({ isOpen, onClose, onServiceAdded }) => {
 
           <div>
             <label className="block text-sm text-gray-400 mb-1">Service Type</label>
-            <select
-              value={formData.type}
-              onChange={(e) => handleTypeChange(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:border-green-500 focus:outline-none"
-            >
-              {serviceTypes.map(type => (
-                <option key={type.value} value={type.value}>{type.label}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={formData.type}
+                onChange={(e) => handleTypeChange(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:border-green-500 focus:outline-none appearance-none pr-10"
+              >
+                {serviceTypes.map(type => (
+                  <option key={type.value} value={type.value}>{type.label}</option>
+                ))}
+              </select>
+              {selectedService?.icon && (
+                <div className="absolute right-2 top-1/2 transform -translate-y-1/2 w-6 h-6 pointer-events-none">
+                  <img 
+                    src={selectedService.icon} 
+                    alt={selectedService.label}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           <div>
@@ -155,7 +165,7 @@ const AddServiceModal = ({ isOpen, onClose, onServiceAdded }) => {
               value={formData.host}
               onChange={(e) => setFormData({...formData, host: e.target.value})}
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:border-green-500 focus:outline-none"
-              placeholder="e.g., 192.168.100.4"
+              placeholder="e.g., 192.168.100.4 or hostname"
               required
             />
           </div>
