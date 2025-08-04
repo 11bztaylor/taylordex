@@ -16,3 +16,13 @@
 - Each module tested independently
 - Integration tests for full system
 - Manual testing via Docker Compose
+
+## Permission Issues
+
+If you get "insufficient permission" errors with git:
+
+1. Never use sudo for git operations
+2. Fix ownership if needed:
+   sudo chown -R zach:zach /home/zach/projects/docker-dashboard
+
+3. Always work as your regular user (zach) for development
