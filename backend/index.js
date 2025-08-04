@@ -14,17 +14,19 @@ app.get('/api/health', (req, res) => {
     status: 'OK', 
     service: 'TaylorDex Backend',
     version: '1.0.0',
-    modules: ['services', 'radarr'] 
+    modules: ['services', 'radarr', 'sonarr'] 
   });
 });
 
 // Import routes
 const servicesRoutes = require('./src/modules/services/routes');
 const radarrRoutes = require('./src/modules/radarr/routes');
+const sonarrRoutes = require('./src/modules/sonarr/routes');
 
 // Mount routes
 app.use('/api/services', servicesRoutes);
 app.use('/api/radarr', radarrRoutes);
+app.use('/api/sonarr', sonarrRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -58,7 +60,7 @@ async function startServer() {
 ╠════════════════════════════════════════╣
 ║ Port: ${PORT}                            ║
 ║ Database: Connected                    ║
-║ Modules: services, radarr              ║
+║ Modules: services, radarr, sonarr      ║
 ╚════════════════════════════════════════╝
       `);
     });
