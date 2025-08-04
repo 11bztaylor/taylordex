@@ -28,7 +28,6 @@ function App() {
       const data = await response.json();
       
       if (data.success) {
-        // Only show real services from database
         const transformedServices = data.services.map(service => ({
           id: service.id,
           name: service.name,
@@ -43,16 +42,22 @@ function App() {
         }));
         setServices(transformedServices);
       } else {
-        // If backend fails, show empty - no mock data
         setServices([]);
       }
     } catch (error) {
       console.error('Failed to fetch services:', error);
-      // No mock data - just empty if backend is down
       setServices([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeleteService = (serviceId) => {
+    // Optimistically remove from UI
+    setServices(prevServices => prevServices.filter(s => s.id !== serviceId));
+    
+    // Could also show a success toast here
+    console.log(`Service ${serviceId} deleted successfully`);
   };
 
   const totalServices = services.length;
@@ -77,6 +82,7 @@ function App() {
             services={services} 
             loading={loading}
             onRefresh={fetchServices}
+            onDeleteService={handleDeleteService}
           />
         )}
         
