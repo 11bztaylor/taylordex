@@ -19,7 +19,8 @@ const AddServiceModal = ({ isOpen, onClose, onServiceAdded }) => {
     { value: 'bazarr', label: 'Bazarr', defaultPort: 6767, icon: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/bazarr.svg' },
     { value: 'lidarr', label: 'Lidarr', defaultPort: 8686, icon: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/lidarr.svg' },
     { value: 'readarr', label: 'Readarr', defaultPort: 8787, icon: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/readarr.svg' },
-    { value: 'prowlarr', label: 'Prowlarr', defaultPort: 9696, icon: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/prowlarr.svg' }
+    { value: 'prowlarr', label: 'Prowlarr', defaultPort: 9696, icon: '/logos/prowlarr.svg' },
+    { value: 'plex', label: 'Plex', defaultPort: 32400, icon: '/logos/plex.svg' }
   ];
 
   const handleTypeChange = (type) => {
