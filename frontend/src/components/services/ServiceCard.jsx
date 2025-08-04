@@ -1,37 +1,31 @@
 import React, { useState, useEffect, Fragment } from 'react';
 import { Menu, Transition } from '@headlessui/react';
-import { EllipsisVerticalIcon, TrashIcon, ArrowPathIcon, PencilIcon } from '@heroicons/react/24/outline';
+import { EllipsisVerticalIcon, TrashIcon, ArrowPathIcon, PencilIcon, FilmIcon, TvIcon, MusicalNoteIcon, BookOpenIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
-const ServiceCard = ({ service, onDelete, onRefresh }) => {
+const ServiceCard = ({ service, onDelete, onRefresh, onEdit }) => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [logoError, setLogoError] = useState(false);
 
-  // Service logo mapping - using the raw GitHub URLs from homelab-svg-assets
-  const serviceLogos = {
-    radarr: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/radarr.svg',
-    sonarr: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/sonarr.svg',
-    bazarr: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/bazarr.svg',
-    lidarr: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/lidarr.svg',
-    readarr: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/readarr.svg',
-    prowlarr: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/prowlarr.svg',
-    overseerr: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/overseerr.svg',
-    requestrr: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/requestrr.svg',
-    plex: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/plex.svg',
-    jellyfin: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/jellyfin.svg',
-    emby: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/emby.svg',
-    tautulli: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/tautulli.svg',
-    ombi: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/ombi.svg',
-    sabnzbd: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/sabnzbd.svg',
-    nzbget: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/nzbget.svg',
-    qbittorrent: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/qbittorrent.svg',
-    deluge: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/deluge.svg',
-    transmission: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/transmission.svg',
-    jackett: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/jackett.svg',
-    flaresolverr: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/flaresolverr.svg',
-    organizr: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/organizr.svg',
-    heimdall: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/heimdall.svg',
-    // Add more as needed from the ICONS.md file
+  // Heroicon fallbacks for each service type
+  const ServiceIcons = {
+    radarr: FilmIcon,
+    sonarr: TvIcon,
+    lidarr: MusicalNoteIcon,
+    readarr: BookOpenIcon,
+    prowlarr: MagnifyingGlassIcon,
+    bazarr: TvIcon
+  };
+
+  // Brand colors for each service
+  const brandColors = {
+    radarr: 'from-orange-500 to-orange-600',
+    sonarr: 'from-blue-500 to-blue-600',
+    bazarr: 'from-purple-500 to-purple-600',
+    lidarr: 'from-green-500 to-green-600',
+    readarr: 'from-red-500 to-red-600',
+    prowlarr: 'from-yellow-500 to-yellow-600'
   };
 
   useEffect(() => {
@@ -86,10 +80,19 @@ const ServiceCard = ({ service, onDelete, onRefresh }) => {
     if (onRefresh) onRefresh();
   };
 
-  const logoUrl = serviceLogos[service.type.toLowerCase()];
+  const IconComponent = ServiceIcons[service.type.toLowerCase()] || ServiceIcons.radarr;
+  const gradientClass = brandColors[service.type.toLowerCase()] || brandColors.radarr;
+  const logoPath = `/logos/${service.type.toLowerCase()}.svg`;
 
   return (
-    <div className={`bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800 hover:border-green-900/50 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/10 relative ${deleting ? 'opacity-50' : ''}`}>
+    <div className={`bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800 hover:border-green-900/50 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/10 relative ${deleting ? 'opacity-50' : ''} ${service.enabled === false ? 'opacity-60' : ''}`}>
+      {/* Disabled indicator */}
+      {service.enabled === false && (
+        <div className="absolute top-2 left-2 bg-gray-800 text-gray-400 text-xs px-2 py-1 rounded">
+          Disabled
+        </div>
+      )}
+      
       {/* Options Menu */}
       <div className="absolute top-4 right-4">
         <Menu as="div" className="relative inline-block text-left">
@@ -114,7 +117,7 @@ const ServiceCard = ({ service, onDelete, onRefresh }) => {
                       className={`${
                         active ? 'bg-gray-800' : ''
                       } group flex w-full items-center rounded-md px-3 py-2 text-sm text-gray-300 hover:text-white transition-colors`}
-                      onClick={() => alert('Edit feature coming soon!')}
+                      onClick={() => onEdit(service)}
                     >
                       <PencilIcon className="mr-2 h-4 w-4" />
                       Edit
@@ -162,26 +165,19 @@ const ServiceCard = ({ service, onDelete, onRefresh }) => {
       {/* Card Content with Logo */}
       <div className="pr-8">
         <div className="flex items-start space-x-4 mb-4">
-          {/* Service Logo */}
-          {logoUrl ? (
-            <div className="w-12 h-12 bg-gray-800/50 rounded-lg p-2 flex-shrink-0">
+          {/* Service Logo with gradient background */}
+          <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${gradientClass} p-2 flex-shrink-0 flex items-center justify-center shadow-lg`}>
+            {!logoError ? (
               <img 
-                src={logoUrl} 
+                src={logoPath}
                 alt={`${service.name} logo`}
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center text-gray-500 text-xs font-medium">' + service.type.substring(0, 2).toUpperCase() + '</div>';
-                }}
+                className="w-full h-full object-contain filter brightness-0 invert"
+                onError={() => setLogoError(true)}
               />
-            </div>
-          ) : (
-            <div className="w-12 h-12 bg-gray-800/50 rounded-lg flex items-center justify-center flex-shrink-0">
-              <span className="text-gray-500 text-sm font-medium">
-                {service.type.substring(0, 2).toUpperCase()}
-              </span>
-            </div>
-          )}
+            ) : (
+              <IconComponent className="w-full h-full text-white" />
+            )}
+          </div>
           
           {/* Service Info */}
           <div className="flex-1 min-w-0">

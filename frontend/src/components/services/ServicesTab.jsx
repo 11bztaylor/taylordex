@@ -1,13 +1,25 @@
 import React, { useState } from 'react';
 import ServiceCard from './ServiceCard';
 import AddServiceModal from './AddServiceModal';
+import EditServiceModal from './EditServiceModal';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
 const ServicesTab = ({ services, loading, onRefresh, onDeleteService }) => {
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingService, setEditingService] = useState(null);
 
   const handleServiceAdded = () => {
     onRefresh();
+  };
+
+  const handleServiceUpdated = () => {
+    onRefresh();
+  };
+
+  const handleEditService = (service) => {
+    setEditingService(service);
+    setShowEditModal(true);
   };
 
   if (loading) {
@@ -45,6 +57,7 @@ const ServicesTab = ({ services, loading, onRefresh, onDeleteService }) => {
             service={service} 
             onDelete={onDeleteService}
             onRefresh={onRefresh}
+            onEdit={handleEditService}
           />
         ))}
         
@@ -70,6 +83,17 @@ const ServicesTab = ({ services, loading, onRefresh, onDeleteService }) => {
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onServiceAdded={handleServiceAdded}
+      />
+
+      {/* Edit Service Modal */}
+      <EditServiceModal 
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingService(null);
+        }}
+        service={editingService}
+        onServiceUpdated={handleServiceUpdated}
       />
     </div>
   );
