@@ -42,3 +42,19 @@ When starting ANY new session, you MUST upload these files:
 - [Any other relevant files]"
 
 ## Remember: NO UPLOAD = NO MEMORY!
+
+## Latest Session Updates (August 4, 2025)
+
+### New Service Modules:
+- backend/src/modules/lidarr/ - Music service
+- backend/src/modules/plex/ - Media server  
+- backend/src/modules/prowlarr/ - Indexer manager
+
+### Critical Learning:
+- ALWAYS create routes.js or backend crashes!
+- Test each service before committing
+- Never use sudo for git operations
+
+### Documentation Created:
+- ADDING_NEW_SERVICES.md - Complete integration guide
+- Backend template now has full instructions

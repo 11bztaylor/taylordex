@@ -1,107 +1,78 @@
-# Current State - After Status Dashboard & Sonarr Integration
+# Current State - After Plex/Prowlarr/Lidarr Integration
 
 ## What's Working ✅
 - Frontend displays at http://localhost:3000
-- Beautiful UI with NVIDIA-green theme
-- Component architecture established
-- Full backend API integration
-- ServiceCard fetches real stats from *arr services
-- Add Service Modal with test connection
-- Backend connects to Radarr/Sonarr/etc
-- Delete service functionality with dropdown menu
-- Edit service modal with all fields
-- Enable/disable toggle working properly
-- Service logos with gradient backgrounds
-- Individual service refresh in dropdown
+- Backend API at http://localhost:5000
 - PostgreSQL persistence fully working
-- Status Dashboard with aggregate stats
-- Service health monitoring visualization
-- Storage distribution charts
-- Quick stats cards for system overview
-- **NEW: Sonarr integration complete**
-- **NEW: Service type filtering on Status tab**
-- **NEW: Refresh indicator with timestamp**
+- 5 services integrated (Radarr, Sonarr, Plex, Prowlarr, Lidarr)
+- Comprehensive documentation for adding services
+- Git credential caching configured
 
-## Backend Endpoints
-- POST /api/services - Add new service
-- GET /api/services - List all services  
-- PUT /api/services/:id - Update service
-- DELETE /api/services/:id - Delete service
-- POST /api/services/test - Test connection
-- GET /api/radarr/:id/stats - Get Radarr stats
-- GET /api/sonarr/:id/stats - Get Sonarr stats ✅ NEW
+## Project Structure
 
-## Services Implemented
-- ✅ Radarr (movies)
-- ✅ Sonarr (TV series)
-- ⏳ Bazarr (subtitles) - skeleton exists
-- ⏳ Lidarr (music) - skeleton exists
-- ⏳ Readarr (ebooks) - skeleton exists
-- ⏳ Prowlarr (indexers) - skeleton exists
+/home/zach/projects/docker-dashboard/
+├── backend/
+│   ├── src/
+│   │   ├── modules/          # Service integrations
+│   │   │   ├── _template/    # Template with README
+│   │   │   ├── radarr/       # ✅ Complete
+│   │   │   ├── sonarr/       # ✅ Complete
+│   │   │   ├── plex/         # ✅ Complete
+│   │   │   ├── prowlarr/     # ✅ Complete
+│   │   │   ├── lidarr/       # ✅ Complete
+│   │   │   ├── bazarr/       # ⏳ Missing routes.js
+│   │   │   └── readarr/      # ⏳ Missing routes.js
+│   │   └── database/         # PostgreSQL schemas
+│   └── index.js              # Main app + route registration
+├── frontend/
+│   ├── public/logos/         # Service logos
+│   └── src/components/       # React components
+├── docs/                     # All documentation
+│   ├── ADDING_NEW_SERVICES.md # Complete guide
+│   └── images/               # TaylorDex branding
+└── docker-compose.yml        # Full stack configuration
 
-## UI Components Status
-- ServiceCard: ✅ Complete with options menu, logos, stats
-- AddServiceModal: ✅ Working with all *arr services
-- EditServiceModal: ✅ Complete with enable/disable
-- ServicesTab: ✅ Shows count, refresh all, modals
-- StatusTab: ✅ Aggregate stats, filtering, refresh
-- Header: ✅ Shows online/total services
-- TabNavigation: ✅ Working
-- Logs Tab: ⚠️ Basic placeholder
-- Users Tab: ⚠️ Basic placeholder
-- Settings Tab: ⚠️ Basic implementation
+## Services Status
+| Service | Backend Module | Frontend UI | Logo | Status |
+|---------|---------------|-------------|------|--------|
+| Radarr | ✅ Complete | ✅ Complete | ✅ | Working |
+| Sonarr | ✅ Complete | ✅ Complete | ✅ | Working |
+| Plex | ✅ Complete | ✅ Ready | ✅ | Ready to test |
+| Prowlarr | ✅ Complete | ✅ Ready | ✅ | Ready to test |
+| Lidarr | ✅ Complete | ✅ Ready | ✅ | Ready to test |
+| Bazarr | ⚠️ No routes.js | ✅ Ready | ✅ | Needs completion |
+| Readarr | ⚠️ No routes.js | ✅ Ready | ✅ | Needs completion |
 
-## Database Status
-- PostgreSQL: ✅ Connected and working
-- Schema: ✅ services and service_stats tables
-- Persistence: ✅ Services saved between restarts
-- Stats caching: ✅ Working for all services
+## Key Learnings
+1. **routes.js is MANDATORY** - Backend crashes without it
+2. Each service needs 6 touchpoints:
+   - Backend service.js
+   - Backend routes.js (CRITICAL!)
+   - Frontend AddServiceModal entry
+   - Frontend ServiceCard display logic
+   - Logo in public/logos/
+   - Route registration in backend/index.js
+3. Use modular architecture - one service failure doesn't break others
+4. Always test service connection before saving
 
-## Recent Session Achievements
-1. Built complete Status Dashboard
-2. Added Sonarr integration module
-3. Implemented service type filtering
-4. Added refresh functionality
-5. Enhanced empty states
+## Quick Commands
 
-## Next Immediate Tasks
-1. Implement remaining *arr services (Bazarr, Lidarr, etc)
-2. Add activity timeline to Status Dashboard
-3. Implement download queue monitoring
-4. Service auto-discovery feature
-5. Create logs viewer with service filtering
-6. Add user management
-7. Export/Import configuration
-8. Real-time notifications
+# Start everything
+cd /home/zach/projects/docker-dashboard && docker-compose up -d
 
-## Quick Start Commands
-cd /home/zach/projects/docker-dashboard && pwd
-docker-compose ps
+# View logs
 docker-compose logs -f
-git status
 
-Last Updated: Session with Status Dashboard & Sonarr
+# Test new service
+curl -X POST http://localhost:5000/api/services/test \
+  -H "Content-Type: application/json" \
+  -d '{"type": "plex", "host": "localhost", "port": 32400, "apiKey": "token"}'
 
-## Modular Service Architecture
+## Next Tasks
+1. Complete Bazarr integration (add routes.js)
+2. Complete Readarr integration (add routes.js)
+3. Test Plex, Prowlarr, Lidarr from UI
+4. Add more services (Jellyfin, Tautulli, Overseerr)
+5. Implement service auto-discovery
 
-Each service is completely isolated in its own module:
-- Service logic in service.js
-- API routes in routes.js (REQUIRED!)
-- Optional controller.js for complex operations
-- Dynamic loading - no registration needed except routes
-
-### Currently Implemented Services
-- ✅ Radarr (movies)
-- ✅ Sonarr (TV series)  
-- ✅ Prowlarr (indexers)
-- ✅ Plex (media server)
-- ⏳ Bazarr (subtitles) - skeleton exists
-- ⏳ Lidarr (music) - skeleton exists
-- ⏳ Readarr (ebooks) - skeleton exists
-
-## Lessons Learned
-1. Always create routes.js - backend crashes without it
-2. Update both AddServiceModal AND ServiceCard for frontend
-3. Use curl for logos, wget might save HTML
-4. Test services individually before committing
-5. Routes must be registered in backend/index.js
+Last Updated: August 4, 2025 - Added 3 new services
