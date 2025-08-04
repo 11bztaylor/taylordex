@@ -14,7 +14,7 @@ app.get('/api/health', (req, res) => {
     status: 'OK', 
     service: 'TaylorDex Backend',
     version: '1.0.0',
-    modules: ['services', 'radarr', 'sonarr', 'plex', 'prowlarr'] 
+    modules: ['services', 'radarr', 'sonarr', 'plex', 'prowlarr', 'lidarr'] 
   });
 });
 
@@ -24,6 +24,7 @@ const radarrRoutes = require('./src/modules/radarr/routes');
 const sonarrRoutes = require('./src/modules/sonarr/routes');
 const plexRoutes = require('./src/modules/plex/routes');
 const prowlarrRoutes = require('./src/modules/prowlarr/routes');
+const lidarrRoutes = require('./src/modules/lidarr/routes');
 
 // Mount routes
 app.use('/api/services', servicesRoutes);
@@ -31,6 +32,7 @@ app.use('/api/radarr', radarrRoutes);
 app.use('/api/sonarr', sonarrRoutes);
 app.use('/api/plex', plexRoutes);
 app.use('/api/prowlarr', prowlarrRoutes);
+app.use('/api/lidarr', lidarrRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -65,7 +67,7 @@ async function startServer() {
 ║ Port: ${PORT}                            ║
 ║ Database: Connected                    ║
 ║ Modules: services, radarr, sonarr      ║
-║          plex, prowlarr                ║
+║          plex, prowlarr, lidarr        ║
 ╚════════════════════════════════════════╝
       `);
     });
