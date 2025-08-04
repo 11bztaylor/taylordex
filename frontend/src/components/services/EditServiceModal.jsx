@@ -16,6 +16,7 @@ const EditServiceModal = ({ isOpen, onClose, service, onServiceUpdated }) => {
   // Load service data when modal opens
   useEffect(() => {
     if (service && isOpen) {
+      console.log('Loading service into edit form:', service);
       setFormData({
         name: service.name || '',
         host: service.host || '',
@@ -60,13 +61,17 @@ const EditServiceModal = ({ isOpen, onClose, service, onServiceUpdated }) => {
     setError(null);
     
     try {
-      // Only send fields that have been modified
+      // Build updates object with all changed fields
       const updates = {};
       if (formData.name !== service.name) updates.name = formData.name;
       if (formData.host !== service.host) updates.host = formData.host;
       if (formData.port !== service.port) updates.port = parseInt(formData.port);
-      if (formData.apiKey) updates.apiKey = formData.apiKey; // Only update if new key provided
-      if (formData.enabled !== service.enabled) updates.enabled = formData.enabled;
+      if (formData.apiKey) updates.apiKey = formData.apiKey;
+      
+      // Always send enabled status to ensure it updates
+      updates.enabled = formData.enabled;
+      
+      console.log('Sending updates:', updates);
 
       const response = await fetch(`http://localhost:5000/api/services/${service.id}`, {
         method: 'PUT',
@@ -75,6 +80,7 @@ const EditServiceModal = ({ isOpen, onClose, service, onServiceUpdated }) => {
       });
       
       const result = await response.json();
+      console.log('Update result:', result);
       
       if (result.success) {
         onServiceUpdated();
@@ -170,15 +176,18 @@ const EditServiceModal = ({ isOpen, onClose, service, onServiceUpdated }) => {
             <p className="text-xs text-gray-500 mt-1">Only enter if you want to change the API key</p>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3 bg-gray-800/50 p-3 rounded-lg">
             <input
               type="checkbox"
               id="enabled"
               checked={formData.enabled}
-              onChange={(e) => setFormData({...formData, enabled: e.target.checked})}
-              className="w-4 h-4 bg-gray-800 border-gray-600 rounded focus:ring-green-500 focus:ring-2"
+              onChange={(e) => {
+                console.log('Toggled enabled to:', e.target.checked);
+                setFormData({...formData, enabled: e.target.checked});
+              }}
+              className="w-4 h-4 text-green-600 bg-gray-700 border-gray-600 rounded focus:ring-green-500 focus:ring-2"
             />
-            <label htmlFor="enabled" className="text-sm text-gray-400">
+            <label htmlFor="enabled" className="text-sm text-gray-300 select-none cursor-pointer">
               Service enabled
             </label>
           </div>

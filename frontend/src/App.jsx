@@ -34,12 +34,14 @@ function App() {
           type: service.type,
           host: service.host,
           port: service.port,
+          enabled: service.enabled !== false, // Ensure enabled is a boolean
           status: service.status || 'unknown',
           lastSeen: service.lastSeen 
             ? new Date(service.lastSeen).toLocaleString() 
             : 'Never',
           stats: service.stats || {}
         }));
+        console.log('Fetched services:', transformedServices); // Debug log
         setServices(transformedServices);
       } else {
         setServices([]);
@@ -61,7 +63,7 @@ function App() {
   };
 
   const totalServices = services.length;
-  const onlineServices = services.filter(s => s.status === 'online').length;
+  const onlineServices = services.filter(s => s.status === 'online' && s.enabled !== false).length;
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -92,12 +94,15 @@ function App() {
             {services.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
                 {services.map(service => (
-                  <div key={service.id} className="bg-gray-800/50 rounded-lg p-4">
+                  <div key={service.id} className={`bg-gray-800/50 rounded-lg p-4 ${service.enabled === false ? 'opacity-50' : ''}`}>
                     <h3 className="font-medium text-white">{service.name}</h3>
                     <p className="text-sm text-gray-400">{service.type}</p>
                     <p className="text-xs text-gray-500 mt-2">
                       {service.host}:{service.port}
                     </p>
+                    {service.enabled === false && (
+                      <span className="text-xs text-amber-400 mt-1">Disabled</span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -136,8 +141,12 @@ function App() {
                 <div className="space-y-2 mt-2">
                   {services.map(service => (
                     <div key={service.id} className="flex justify-between items-center text-sm">
-                      <span className="text-gray-400">{service.name}</span>
-                      <span className="text-gray-500">ID: {service.id}</span>
+                      <span className={`text-gray-400 ${service.enabled === false ? 'line-through' : ''}`}>
+                        {service.name}
+                      </span>
+                      <span className="text-gray-500">
+                        ID: {service.id} {service.enabled === false && '(Disabled)'}
+                      </span>
                     </div>
                   ))}
                 </div>
