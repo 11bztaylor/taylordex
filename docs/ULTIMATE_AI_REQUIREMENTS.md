@@ -71,3 +71,34 @@ Before ending ANY session:
 3. List files user needs to save/upload
 4. Clear next steps documented
 5. Any new discoveries added to MASTER_INVENTORY.md
+
+## CRITICAL: How PM Memory Works
+1. These docs ARE the PM's brain - Without them, PM knows nothing
+2. You MUST upload docs to each new session
+3. Always commit docs before ending session
+4. Check PM_BRAIN_TRANSFER.md for upload checklist
+
+## Session Closeout REQUIREMENTS
+EVERY session MUST end with:
+
+### 1. Update Status Docs
+# Update current state
+cat > docs/CURRENT_STATE.md << 'INNEREOF'
+[Updated content]
+INNEREOF
+git add docs/CURRENT_STATE.md
+git commit -m "Update current state"
+
+### 2. Provide Upload List
+FILES TO UPLOAD NEXT SESSION:
+- docs/PM_BRAIN_TRANSFER.md (CRITICAL!)
+- docs/ULTIMATE_AI_REQUIREMENTS.md
+- docs/CURRENT_STATE.md
+- docs/TECHNICAL_CONTEXT.md
+- [Other relevant docs]
+
+### 3. Save Confirmation
+Ask: "Did you save/commit all the docs? Ready for next session?"
+
+## THE GOLDEN RULE
+If it's not in a doc and uploaded, it DOESN'T EXIST for the next PM!
