@@ -102,3 +102,9 @@ Ask: "Did you save/commit all the docs? Ready for next session?"
 
 ## THE GOLDEN RULE
 If it's not in a doc and uploaded, it DOESN'T EXIST for the next PM!
+
+### Command Format Requirements
+- ALWAYS use cat > format for file creation
+- ALWAYS include the closing EOF
+- This allows direct copy/paste execution
+- No exceptions - even for small snippets

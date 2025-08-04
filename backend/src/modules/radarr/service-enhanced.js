@@ -20,7 +20,7 @@ class RadarrService extends BaseService {
       const systemStatus = await this.apiCall(config, '/api/v3/system/status');
       const diskSpace = await this.apiCall(config, '/api/v3/diskspace');
       
-      // Basic stats
+      // Basic stats (what you're seeing now)
       const totalMovies = movies.length;
       const missingMovies = movies.filter(m => !m.hasFile).length;
       const monitoredMovies = movies.filter(m => m.monitored).length;
@@ -29,52 +29,27 @@ class RadarrService extends BaseService {
       const freeSpace = diskSpace.reduce((acc, disk) => acc + disk.freeSpace, 0);
       const usedSpace = totalSpace - freeSpace;
 
-      // Get queue info - FIXED parsing
+      // Now let's add the ENHANCED data
+      console.log('Fetching enhanced data...');
+      
+      // Get queue info
       let queueData = { total: 0, items: [] };
       try {
-        const queue = await this.apiCall(config, '/api/v3/queue?pageSize=20&includeUnknownMovieItems=true');
-        console.log('Queue response structure:', Object.keys(queue));
-        
+        const queue = await this.apiCall(config, '/api/v3/queue');
         queueData = {
           total: queue.totalRecords || 0,
-          downloading: 0,
-          queued: 0,
-          items: []
+          downloading: queue.records?.filter(q => q.status === 'downloading').length || 0,
+          queued: queue.records?.filter(q => q.status === 'queued').length || 0,
+          items: queue.records?.slice(0, 10).map(q => ({
+            title: q.movie?.title || 'Unknown',
+            progress: Math.round(q.sizeleft && q.size ? ((q.size - q.sizeleft) / q.size) * 100 : 0),
+            eta: q.timeleft || 'Unknown',
+            size: this.formatBytes(q.size || 0),
+            status: q.status
+          })) || []
         };
-
-        if (queue.records && Array.isArray(queue.records)) {
-          console.log(`Processing ${queue.records.length} queue items`);
-          
-          // Count by status
-          queueData.downloading = queue.records.filter(q => q.status === 'downloading').length;
-          queueData.queued = queue.records.filter(q => q.status === 'queued' || q.status === 'delay').length;
-          
-          // Parse queue items
-          queueData.items = queue.records.slice(0, 10).map(q => {
-            // Try different ways to get the title
-            let title = 'Unknown';
-            if (q.title) {
-              title = q.title;
-            } else if (q.movie && q.movie.title) {
-              title = q.movie.title;
-            } else if (q.sourceTitle) {
-              // Extract movie name from source title (e.g., "Movie Name 2024 1080p BluRay")
-              title = q.sourceTitle.split(/\d{4}/)[0].trim() || q.sourceTitle;
-            }
-            
-            return {
-              title: title,
-              progress: Math.round(q.sizeleft && q.size ? ((q.size - q.sizeleft) / q.size) * 100 : 0),
-              eta: q.timeleft || 'Unknown',
-              size: this.formatBytes(q.size || 0),
-              status: q.status || 'queued',
-              downloadClient: q.downloadClient || 'Unknown',
-              quality: q.quality?.quality?.name || 'Unknown'
-            };
-          });
-        }
       } catch (e) {
-        console.error('Error fetching queue:', e.message);
+        console.log('Could not fetch queue:', e.message);
       }
 
       // Get recent additions
@@ -93,23 +68,7 @@ class RadarrService extends BaseService {
           .sort((a, b) => new Date(b.added) - new Date(a.added))
           .slice(0, 20);
       } catch (e) {
-        console.error('Error processing recent additions:', e.message);
-      }
-
-      // Get recent downloads from history
-      let recentDownloads = [];
-      try {
-        const history = await this.apiCall(config, '/api/v3/history?pageSize=20&sortKey=date&sortDirection=descending&eventType=downloadFolderImported');
-        if (history.records) {
-          recentDownloads = history.records.map(h => ({
-            title: h.movie?.title || h.sourceTitle || 'Unknown',
-            downloaded: h.date,
-            quality: h.quality?.quality?.name || 'Unknown',
-            size: this.formatBytes(h.data?.size || 0)
-          })).slice(0, 10);
-        }
-      } catch (e) {
-        console.error('Error fetching history:', e.message);
+        console.log('Could not process recent additions:', e.message);
       }
 
       // Quality breakdown
@@ -130,33 +89,29 @@ class RadarrService extends BaseService {
           warnings: health?.slice(0, 10).map(h => h.message) || []
         };
       } catch (e) {
-        console.error('Error fetching health:', e.message);
+        console.log('Could not fetch health:', e.message);
       }
 
       // Get upcoming releases
       let upcoming = [];
       try {
-        const startDate = new Date().toISOString();
-        const endDate = new Date(Date.now() + 30*24*60*60*1000).toISOString();
-        const calendar = await this.apiCall(config, `/api/v3/calendar?start=${startDate}&end=${endDate}&includeUnmonitored=false`);
-        
+        const calendar = await this.apiCall(config, '/api/v3/calendar?start=' + new Date().toISOString() + '&end=' + new Date(Date.now() + 30*24*60*60*1000).toISOString());
         upcoming = calendar
-          .filter(m => new Date(m.inCinemas || m.digitalRelease || m.physicalRelease) > new Date())
+          .filter(m => new Date(m.inCinemas || m.digitalRelease) > new Date())
           .map(m => ({
             title: m.title,
-            releaseDate: m.inCinemas || m.digitalRelease || m.physicalRelease,
-            monitored: m.monitored,
-            hasFile: m.hasFile
+            releaseDate: m.inCinemas || m.digitalRelease,
+            monitored: m.monitored
           }))
           .slice(0, 10);
       } catch (e) {
-        console.error('Error fetching calendar:', e.message);
+        console.log('Could not fetch calendar:', e.message);
       }
 
       console.log('Enhanced data collection complete');
 
       return {
-        // Basic stats
+        // Basic stats (what you have now)
         movies: totalMovies,
         missing: missingMovies,
         monitored: monitoredMovies,
@@ -167,21 +122,16 @@ class RadarrService extends BaseService {
         version: systemStatus.version,
         status: 'online',
         
-        // Enhanced stats
+        // ENHANCED stats (new data)
         queue: queueData,
         recentAdditions: recentAdditions,
-        recentDownloads: recentDownloads,
         qualityBreakdown: qualityBreakdown,
         health: healthData,
         upcoming: upcoming,
         
         // Extra stats
         totalFileSize: this.formatBytes(movies.reduce((sum, m) => sum + (m.movieFile?.size || 0), 0)),
-        averageFileSize: this.formatBytes(
-          movies.filter(m => m.movieFile).length > 0 
-            ? movies.filter(m => m.movieFile).reduce((sum, m) => sum + (m.movieFile?.size || 0), 0) / movies.filter(m => m.movieFile).length 
-            : 0
-        )
+        averageFileSize: this.formatBytes(movies.filter(m => m.movieFile).reduce((sum, m) => sum + (m.movieFile?.size || 0), 0) / movies.filter(m => m.movieFile).length || 0)
       };
     } catch (error) {
       console.error('Error fetching Radarr stats:', error.message);
@@ -198,7 +148,7 @@ class RadarrService extends BaseService {
   }
 
   formatBytes(bytes) {
-    if (!bytes || bytes === 0) return '0 Bytes';
+    if (bytes === 0) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));

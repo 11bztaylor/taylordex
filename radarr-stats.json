@@ -1,0 +1,4 @@
+{
+    "success": false,
+    "error": "invalid input syntax for type integer: \"X\""
+}
