@@ -3,10 +3,12 @@ import {
   ServerIcon, 
   FilmIcon, 
   TvIcon, 
-  HardDriveIcon,
+  CircleStackIcon,
   ArrowTrendingUpIcon,
   ExclamationTriangleIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  ArrowPathIcon,
+  FunnelIcon
 } from '@heroicons/react/24/outline';
 
 const StatusTab = ({ services }) => {
@@ -19,10 +21,17 @@ const StatusTab = ({ services }) => {
     servicesOffline: 0,
     totalServices: 0
   });
+  const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedTypes, setSelectedTypes] = useState(new Set()); // Empty = show all
+
+  // Get unique service types
+  const serviceTypes = [...new Set(services.map(s => s.type))];
 
   useEffect(() => {
     calculateAggregateStats();
-  }, [services]);
+    setLastUpdated(new Date());
+  }, [services, selectedTypes]);
 
   const calculateAggregateStats = () => {
     const stats = {
@@ -32,10 +41,16 @@ const StatusTab = ({ services }) => {
       totalDiskUsage: 0,
       servicesOnline: 0,
       servicesOffline: 0,
-      totalServices: services.length
+      totalServices: 0
     };
 
-    services.forEach(service => {
+    const filteredServices = selectedTypes.size > 0 
+      ? services.filter(s => selectedTypes.has(s.type))
+      : services;
+
+    stats.totalServices = filteredServices.length;
+
+    filteredServices.forEach(service => {
       if (service.enabled === false) return; // Skip disabled services
       
       if (service.status === 'online') {
@@ -81,20 +96,102 @@ const StatusTab = ({ services }) => {
     return Math.round((aggregateStats.servicesOnline / aggregateStats.totalServices) * 100);
   };
 
+  const toggleTypeFilter = (type) => {
+    const newTypes = new Set(selectedTypes);
+    if (newTypes.has(type)) {
+      newTypes.delete(type);
+    } else {
+      newTypes.add(type);
+    }
+    setSelectedTypes(newTypes);
+  };
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    // Trigger parent refresh if available
+    window.location.reload(); // Simple refresh for now
+  };
+
+  const getFilteredServices = () => {
+    return selectedTypes.size > 0 
+      ? services.filter(s => selectedTypes.has(s.type))
+      : services;
+  };
+
+  const getServiceTypeIcon = (type) => {
+    const icons = {
+      radarr: '🎬',
+      sonarr: '📺',
+      lidarr: '🎵',
+      readarr: '📚',
+      bazarr: '💬',
+      prowlarr: '🔍'
+    };
+    return icons[type] || '📦';
+  };
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-semibold text-white">System Status</h2>
-        <p className="text-sm text-gray-400 mt-1">
-          Real-time overview of your media services
-        </p>
+      {/* Header with Last Updated */}
+      <div className="flex justify-between items-start">
+        <div>
+          <h2 className="text-2xl font-semibold text-white">System Status</h2>
+          <p className="text-sm text-gray-400 mt-1">
+            Real-time overview of your media services
+          </p>
+        </div>
+        <div className="text-right">
+          <button
+            onClick={handleRefresh}
+            className={`p-2 hover:bg-gray-800/50 rounded-lg transition-colors group ${isRefreshing ? 'animate-spin' : ''}`}
+            title="Refresh data"
+          >
+            <ArrowPathIcon className="w-5 h-5 text-gray-400 group-hover:text-green-400" />
+          </button>
+          <p className="text-xs text-gray-500 mt-1">
+            Updated {lastUpdated.toLocaleTimeString()}
+          </p>
+        </div>
       </div>
+
+      {/* Service Type Filters */}
+      {serviceTypes.length > 1 && (
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 text-sm text-gray-400">
+            <FunnelIcon className="w-4 h-4" />
+            <span>Filter:</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {serviceTypes.map(type => (
+              <button
+                key={type}
+                onClick={() => toggleTypeFilter(type)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                  selectedTypes.size === 0 || selectedTypes.has(type)
+                    ? 'bg-green-900/30 text-green-400 border border-green-800'
+                    : 'bg-gray-800/30 text-gray-500 border border-gray-700 hover:border-gray-600'
+                }`}
+              >
+                <span className="mr-1">{getServiceTypeIcon(type)}</span>
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </button>
+            ))}
+            {selectedTypes.size > 0 && (
+              <button
+                onClick={() => setSelectedTypes(new Set())}
+                className="px-3 py-1 rounded-full text-xs font-medium bg-gray-800/30 text-gray-400 border border-gray-700 hover:border-gray-600"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Quick Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Service Health */}
-        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
+        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800 hover:border-gray-700 transition-all">
           <div className="flex items-center justify-between mb-4">
             <ServerIcon className="w-8 h-8 text-green-400" />
             <span className="text-2xl font-bold text-white">{getHealthPercentage()}%</span>
@@ -112,7 +209,7 @@ const StatusTab = ({ services }) => {
         </div>
 
         {/* Total Media */}
-        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
+        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800 hover:border-gray-700 transition-all">
           <div className="flex items-center justify-between mb-4">
             <FilmIcon className="w-8 h-8 text-orange-400" />
             <span className="text-2xl font-bold text-white">
@@ -126,7 +223,7 @@ const StatusTab = ({ services }) => {
         </div>
 
         {/* Missing Content */}
-        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
+        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800 hover:border-gray-700 transition-all">
           <div className="flex items-center justify-between mb-4">
             <ExclamationTriangleIcon className="w-8 h-8 text-amber-400" />
             <span className="text-2xl font-bold text-white">
@@ -140,9 +237,9 @@ const StatusTab = ({ services }) => {
         </div>
 
         {/* Storage Used */}
-        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
+        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800 hover:border-gray-700 transition-all">
           <div className="flex items-center justify-between mb-4">
-            <HardDriveIcon className="w-8 h-8 text-blue-400" />
+            <CircleStackIcon className="w-8 h-8 text-blue-400" />
             <span className="text-2xl font-bold text-white">
               {formatDiskSize(aggregateStats.totalDiskUsage)}
             </span>
@@ -156,20 +253,46 @@ const StatusTab = ({ services }) => {
 
       {/* Service Status Grid */}
       <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
-        <h3 className="text-lg font-semibold text-white mb-4">Service Status</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {services.map(service => (
-            <ServiceStatusCard key={service.id} service={service} />
-          ))}
-        </div>
+        <h3 className="text-lg font-semibold text-white mb-4">
+          Service Status
+          {selectedTypes.size > 0 && (
+            <span className="text-sm font-normal text-gray-400 ml-2">
+              ({getFilteredServices().length} filtered)
+            </span>
+          )}
+        </h3>
+        {getFilteredServices().length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {getFilteredServices().map(service => (
+              <ServiceStatusCard key={service.id} service={service} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <ServerIcon className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+            <p className="text-gray-400">
+              {services.length === 0 
+                ? "No services configured yet" 
+                : "No services match the selected filters"}
+            </p>
+            {services.length === 0 && (
+              <button 
+                onClick={() => document.querySelector('[data-tab="services"]')?.click()}
+                className="mt-4 text-green-400 hover:text-green-300 text-sm"
+              >
+                Go to Services tab to add one →
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Disk Usage by Service */}
-      {services.some(s => s.stats?.diskSpace) && (
+      {getFilteredServices().some(s => s.stats?.diskSpace) && (
         <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
           <h3 className="text-lg font-semibold text-white mb-4">Storage Distribution</h3>
           <div className="space-y-3">
-            {services
+            {getFilteredServices()
               .filter(s => s.stats?.diskSpace && s.enabled !== false)
               .map(service => (
                 <DiskUsageBar key={service.id} service={service} />
@@ -181,7 +304,7 @@ const StatusTab = ({ services }) => {
   );
 };
 
-// Service Status Card Component
+// Service Status Card Component (unchanged)
 const ServiceStatusCard = ({ service }) => {
   const isOnline = service.status === 'online' && service.enabled !== false;
   const isDisabled = service.enabled === false;
@@ -197,7 +320,7 @@ const ServiceStatusCard = ({ service }) => {
   };
 
   return (
-    <div className={`${getStatusBg()} rounded-lg p-4 border ${isDisabled ? 'border-gray-800' : isOnline ? 'border-green-900/50' : 'border-red-900/50'}`}>
+    <div className={`${getStatusBg()} rounded-lg p-4 border ${isDisabled ? 'border-gray-800' : isOnline ? 'border-green-900/50' : 'border-red-900/50'} hover:border-opacity-80 transition-all`}>
       <div className="flex items-center justify-between mb-2">
         <h4 className="font-medium text-white">{service.name}</h4>
         <div className={`w-2 h-2 rounded-full ${isDisabled ? 'bg-gray-500' : isOnline ? 'bg-green-400 animate-pulse' : 'bg-red-500'}`} />
@@ -228,7 +351,7 @@ const ServiceStatusCard = ({ service }) => {
   );
 };
 
-// Disk Usage Bar Component
+// Disk Usage Bar Component (unchanged)
 const DiskUsageBar = ({ service }) => {
   const [diskSize, setDiskSize] = useState(0);
   const [unit, setUnit] = useState('GB');
