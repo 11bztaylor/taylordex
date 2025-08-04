@@ -1,44 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './components/layout/Header';
 import TabNavigation from './components/layout/TabNavigation';
 import ServicesTab from './components/services/ServicesTab';
 
 function App() {
   const [activeTab, setActiveTab] = useState('services');
-
-  // Mock data
-  const mockServices = [
-    { 
-      id: 1,
-      name: "Radarr - Movies", 
-      type: "radarr", 
-      host: "pidocker.taylorhomelink.com",
-      port: 7878,
-      status: "online",
-      lastSeen: "2 min ago",
-      stats: { movies: 1245, missing: 23, diskSpace: "2.4 TB" }
-    },
-    { 
-      id: 2,
-      name: "Sonarr - TV Shows", 
-      type: "sonarr", 
-      host: "pidocker.taylorhomelink.com",
-      port: 8989,
-      status: "online",
-      lastSeen: "1 min ago",
-      stats: { series: 89, episodes: 4521, diskSpace: "8.1 TB" }
-    },
-    { 
-      id: 3,
-      name: "Plex Media Server", 
-      type: "plex", 
-      host: "mediaserver.local",
-      port: 32400,
-      status: "offline",
-      lastSeen: "Connection failed",
-      stats: { users: 3, libraries: 5, playing: 0 }
-    }
-  ];
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const currentUser = {
     id: 1,
@@ -47,8 +15,48 @@ function App() {
     role: "admin"
   };
 
-  const totalServices = mockServices.length;
-  const onlineServices = mockServices.filter(s => s.status === 'online').length;
+  useEffect(() => {
+    fetchServices();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchServices, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchServices = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/services');
+      const data = await response.json();
+      
+      if (data.success) {
+        // Only show real services from database
+        const transformedServices = data.services.map(service => ({
+          id: service.id,
+          name: service.name,
+          type: service.type,
+          host: service.host,
+          port: service.port,
+          status: service.status || 'unknown',
+          lastSeen: service.lastSeen 
+            ? new Date(service.lastSeen).toLocaleString() 
+            : 'Never',
+          stats: service.stats || {}
+        }));
+        setServices(transformedServices);
+      } else {
+        // If backend fails, show empty - no mock data
+        setServices([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch services:', error);
+      // No mock data - just empty if backend is down
+      setServices([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const totalServices = services.length;
+  const onlineServices = services.filter(s => s.status === 'online').length;
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -64,12 +72,32 @@ function App() {
       />
 
       <main className="container mx-auto px-4 py-8">
-        {activeTab === 'services' && <ServicesTab services={mockServices} />}
+        {activeTab === 'services' && (
+          <ServicesTab 
+            services={services} 
+            loading={loading}
+            onRefresh={fetchServices}
+          />
+        )}
         
         {activeTab === 'status' && (
           <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
             <h2 className="text-xl font-semibold mb-4 text-green-400">Status Dashboard</h2>
-            <p className="text-gray-400">Status components coming soon...</p>
+            {services.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                {services.map(service => (
+                  <div key={service.id} className="bg-gray-800/50 rounded-lg p-4">
+                    <h3 className="font-medium text-white">{service.name}</h3>
+                    <p className="text-sm text-gray-400">{service.type}</p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {service.host}:{service.port}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-400">No services configured yet.</p>
+            )}
           </div>
         )}
         
@@ -90,7 +118,25 @@ function App() {
         {activeTab === 'settings' && (
           <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
             <h2 className="text-xl font-semibold mb-4 text-green-400">Settings</h2>
-            <p className="text-gray-400">Settings coming soon...</p>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-medium text-gray-300 mb-2">API Configuration</h3>
+                <p className="text-sm text-gray-500">
+                  Backend API: http://localhost:5000
+                </p>
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-gray-300 mb-2">Database Services</h3>
+                <div className="space-y-2 mt-2">
+                  {services.map(service => (
+                    <div key={service.id} className="flex justify-between items-center text-sm">
+                      <span className="text-gray-400">{service.name}</span>
+                      <span className="text-gray-500">ID: {service.id}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </main>

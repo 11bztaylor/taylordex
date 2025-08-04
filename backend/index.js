@@ -1,15 +1,71 @@
 const express = require('express');
 const cors = require('cors');
+require('dotenv').config();
+
+const { initializeDatabase } = require('./src/database/connection');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', service: 'TaylorDex Backend' });
+  res.json({ 
+    status: 'OK', 
+    service: 'TaylorDex Backend',
+    version: '1.0.0',
+    modules: ['services', 'radarr'] 
+  });
+});
+
+// Import routes
+const servicesRoutes = require('./src/modules/services/routes');
+const radarrRoutes = require('./src/modules/radarr/routes');
+
+// Mount routes
+app.use('/api/services', servicesRoutes);
+app.use('/api/radarr', radarrRoutes);
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({
+    success: false,
+    error: 'Internal server error',
+    message: err.message
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Endpoint not found'
+  });
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`TaylorDex Backend running on port ${PORT}`);
-});
+
+// Initialize database and start server
+async function startServer() {
+  try {
+    await initializeDatabase();
+    
+    app.listen(PORT, () => {
+      console.log(`
+╔════════════════════════════════════════╗
+║       TaylorDex Backend Started        ║
+╠════════════════════════════════════════╣
+║ Port: ${PORT}                            ║
+║ Database: Connected                    ║
+║ Modules: services, radarr              ║
+╚════════════════════════════════════════╝
+      `);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
