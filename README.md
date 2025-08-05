@@ -4,7 +4,6 @@ TaylorDex - Docker Service Dashboard
 A beautiful, modular dashboard for managing 50+ Docker containers with a focus on *arr services.
 
 ## Features
-- ✅ Beautiful NVIDIA-green themed UI
 - ✅ Service management (Add/Edit/Delete/Disable)
 - ✅ Real-time stats from Radarr/Sonarr/etc
 - ✅ PostgreSQL persistence
