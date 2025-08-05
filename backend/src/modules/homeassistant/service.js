@@ -15,22 +15,31 @@ class HomeAssistantService extends BaseService {
 
   getHeaders(config) {
     return {
-      'Authorization': `Bearer ${config.apiKey}`,
+      'Authorization': `Bearer ${config.api_key || config.apiKey}`,
       'Content-Type': 'application/json'
     };
   }
 
   async testConnection(config) {
     try {
-      const url = this.buildUrl(config.host, config.port, '/api/');
-      const response = await this.axios.get(url, {
+      // Test basic API access
+      const apiUrl = this.buildUrl(config.host, config.port, '/api/');
+      await this.axios.get(apiUrl, {
         headers: this.getHeaders(config)
       });
       
+      // Get version info from config endpoint
+      const configUrl = this.buildUrl(config.host, config.port, '/api/config');
+      const configResponse = await this.axios.get(configUrl, {
+        headers: this.getHeaders(config)
+      });
+      
+      const version = configResponse.data.version || 'Unknown';
+      
       return {
         success: true,
-        version: response.data.version || 'Unknown',
-        message: `Connected to Home Assistant ${response.data.version}`
+        version: version,
+        message: `Connected to Home Assistant ${version}`
       };
     } catch (error) {
       return {
@@ -102,6 +111,10 @@ class HomeAssistantService extends BaseService {
         scripts: scripts,
         services: Object.keys(services).length,
         uptime: this.calculateUptime(configData),
+        health: {
+          issues: deviceStates.unavailable,
+          warnings: deviceStates.unavailable > 0 ? [`${deviceStates.unavailable} entities unavailable`] : []
+        },
         lastUpdate: new Date().toISOString()
       };
     } catch (error) {
@@ -354,4 +367,4 @@ class HomeAssistantService extends BaseService {
   }
 }
 
-module.exports = HomeAssistantService;
+module.exports = new HomeAssistantService();

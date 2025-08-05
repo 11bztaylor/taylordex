@@ -1,6 +1,5 @@
-const HomeAssistantService = require('./service');
-
-const homeAssistantService = new HomeAssistantService();
+const homeAssistantService = require('./service');
+const { query } = require('../../database/connection');
 
 class HomeAssistantController {
   
@@ -22,16 +21,33 @@ class HomeAssistantController {
   async getStats(req, res) {
     try {
       const { id } = req.params;
-      const service = req.services?.find(s => s.id == id);
       
-      if (!service) {
-        return res.status(404).json({ error: 'Service not found' });
+      // Get service config from database
+      const result = await query(
+        'SELECT * FROM services WHERE id = $1 AND type = $2',
+        [id, 'homeassistant']
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Home Assistant service not found'
+        });
       }
 
-      const stats = await homeAssistantService.getStats(service);
-      res.json(stats);
+      const config = result.rows[0];
+      const stats = await homeAssistantService.getStats(config);
+      
+      res.json({
+        success: true,
+        stats: stats
+      });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      console.error('Home Assistant getStats error:', error);
+      res.status(500).json({ 
+        success: false,
+        error: error.message 
+      });
     }
   }
 
@@ -39,16 +55,33 @@ class HomeAssistantController {
   async getEnhancedStats(req, res) {
     try {
       const { id } = req.params;
-      const service = req.services?.find(s => s.id == id);
       
-      if (!service) {
-        return res.status(404).json({ error: 'Service not found' });
+      // Get service config from database
+      const result = await query(
+        'SELECT * FROM services WHERE id = $1 AND type = $2',
+        [id, 'homeassistant']
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Home Assistant service not found'
+        });
       }
 
-      const stats = await homeAssistantService.getEnhancedStats(service);
-      res.json(stats);
+      const config = result.rows[0];
+      const stats = await homeAssistantService.getEnhancedStats(config);
+      
+      res.json({
+        success: true,
+        stats: stats
+      });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      console.error('Home Assistant getEnhancedStats error:', error);
+      res.status(500).json({ 
+        success: false,
+        error: error.message 
+      });
     }
   }
 
