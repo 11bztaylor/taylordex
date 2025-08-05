@@ -16,9 +16,3 @@ router.get('/:id/queue', radarrController.getQueue);
 
 module.exports = router;
 
-// Import test routes
-const testRoutes = require("./testEndpoints");
-
-// Mount test routes
-router.use("/", testRoutes);
-

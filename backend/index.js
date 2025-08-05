@@ -14,7 +14,7 @@ app.get('/api/health', (req, res) => {
     status: 'OK', 
     service: 'TaylorDex Backend',
     version: '1.0.0',
-    modules: ['services', 'radarr', 'sonarr', 'plex', 'prowlarr', 'lidarr', 'unraid'] 
+    modules: ['services', 'radarr', 'sonarr', 'plex', 'prowlarr', 'lidarr', 'unraid', 'homeassistant', 'discovery', 'logs', 'docker'] 
   });
 });
 
@@ -26,6 +26,10 @@ const plexRoutes = require('./src/modules/plex/routes');
 const prowlarrRoutes = require('./src/modules/prowlarr/routes');
 const lidarrRoutes = require('./src/modules/lidarr/routes');
 const unraidRoutes = require('./src/modules/unraid/routes');
+const homeAssistantRoutes = require('./src/modules/homeassistant/routes');
+const discoveryRoutes = require('./src/modules/discovery/routes');
+const logRoutes = require('./src/modules/logs/routes');
+const dockerRoutes = require('./src/modules/docker/routes');
 
 // Mount routes
 app.use('/api/services', servicesRoutes);
@@ -35,6 +39,10 @@ app.use('/api/plex', plexRoutes);
 app.use('/api/prowlarr', prowlarrRoutes);
 app.use('/api/lidarr', lidarrRoutes);
 app.use('/api/unraid', unraidRoutes);
+app.use('/api/homeassistant', homeAssistantRoutes);
+app.use('/api/discovery', discoveryRoutes);
+app.use('/api/logs', logRoutes);
+app.use('/api/docker', dockerRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -70,6 +78,8 @@ async function startServer() {
 ║ Database: Connected                    ║
 ║ Modules: services, radarr, sonarr      ║
 ║          plex, prowlarr, lidarr        ║
+║          unraid, homeassistant         ║
+║          discovery, logs, docker       ║
 ╚════════════════════════════════════════╝
       `);
     });

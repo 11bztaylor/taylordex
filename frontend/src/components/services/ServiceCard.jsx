@@ -1,8 +1,8 @@
 import React, { useState, useEffect, Fragment } from 'react';
 import { Menu, Transition } from '@headlessui/react';
-import { EllipsisVerticalIcon, TrashIcon, ArrowPathIcon, PencilIcon, FilmIcon, TvIcon, MusicalNoteIcon, BookOpenIcon, MagnifyingGlassIcon, ServerIcon, PlayIcon } from '@heroicons/react/24/outline';
+import { EllipsisVerticalIcon, TrashIcon, ArrowPathIcon, PencilIcon, FilmIcon, TvIcon, MusicalNoteIcon, BookOpenIcon, MagnifyingGlassIcon, ServerIcon, PlayIcon, CubeIcon, ArrowTopRightOnSquareIcon, HomeIcon } from '@heroicons/react/24/outline';
 
-const ServiceCard = ({ service, onDelete, onRefresh, onEdit }) => {
+const ServiceCard = ({ service, onDelete, onRefresh, onEdit, onClick }) => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
@@ -17,6 +17,7 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit }) => {
     prowlarr: MagnifyingGlassIcon,
     bazarr: TvIcon,
     plex: PlayIcon,
+    homeassistant: HomeIcon,
     unraid: ServerIcon
   };
 
@@ -29,6 +30,7 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit }) => {
     readarr: 'from-red-500 to-red-600',
     prowlarr: 'from-yellow-500 to-yellow-600',
     plex: 'from-yellow-400 to-orange-500',
+    homeassistant: 'from-blue-600 to-indigo-600',
     unraid: 'from-orange-500 to-red-500'
   };
 
@@ -38,7 +40,7 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit }) => {
 
   const fetchStats = async () => {
     try {
-      if (['radarr', 'sonarr', 'lidarr', 'readarr', 'bazarr', 'prowlarr', 'plex', 'unraid'].includes(service.type)) {
+      if (['radarr', 'sonarr', 'lidarr', 'readarr', 'bazarr', 'prowlarr', 'plex', 'homeassistant', 'unraid'].includes(service.type)) {
         const response = await fetch(`http://localhost:5000/api/${service.type}/${service.id}/stats`);
         const data = await response.json();
         
@@ -89,7 +91,9 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit }) => {
   const logoPath = `/logos/${service.type.toLowerCase()}.svg`;
 
   return (
-    <div className={`bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800 hover:border-green-900/50 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/10 relative ${deleting ? 'opacity-50' : ''} ${service.enabled === false ? 'opacity-60' : ''}`}>
+    <div 
+      className={`bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800 hover:border-green-900/50 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/10 relative cursor-pointer ${deleting ? 'opacity-50' : ''} ${service.enabled === false ? 'opacity-60' : ''}`}
+      onClick={() => onClick && onClick(service)}>
       {/* Disabled indicator */}
       {service.enabled === false && (
         <div className="absolute top-2 left-2 bg-gray-800 text-gray-400 text-xs px-2 py-1 rounded">
@@ -98,7 +102,7 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit }) => {
       )}
       
       {/* Options Menu */}
-      <div className="absolute top-4 right-4">
+      <div className="absolute top-4 right-4" onClick={(e) => e.stopPropagation()}>
         <Menu as="div" className="relative inline-block text-left">
           <Menu.Button className="p-1 rounded-lg hover:bg-gray-800/50 transition-colors">
             <EllipsisVerticalIcon className="w-5 h-5 text-gray-400 hover:text-white" />
@@ -169,17 +173,19 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit }) => {
       {/* Card Content with Logo */}
       <div className="pr-8">
         <div className="flex items-start space-x-4 mb-4">
-          {/* Service Logo with gradient background */}
-          <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${gradientClass} p-2 flex-shrink-0 flex items-center justify-center shadow-lg`}>
+          {/* Service Logo with better display */}
+          <div className="w-12 h-12 rounded-lg bg-gray-800/50 backdrop-blur-sm p-2 flex-shrink-0 flex items-center justify-center shadow-lg border border-gray-700">
             {!logoError ? (
               <img 
                 src={logoPath}
                 alt={`${service.name} logo`}
-                className="w-full h-full object-contain filter brightness-0 invert"
+                className="w-full h-full object-contain"
                 onError={() => setLogoError(true)}
               />
             ) : (
-              <IconComponent className="w-full h-full text-white" />
+              <div className={`w-full h-full rounded bg-gradient-to-br ${gradientClass} flex items-center justify-center`}>
+                <IconComponent className="w-6 h-6 text-white" />
+              </div>
             )}
           </div>
           
@@ -274,6 +280,35 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit }) => {
                 </>
               )}
               
+              {service.type === 'homeassistant' && (
+                <>
+                  {stats.entities?.total !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Entities</span>
+                      <span className="text-sm text-green-400 font-medium">{stats.entities.total.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {stats.devices?.online !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Online Devices</span>
+                      <span className="text-sm text-blue-400 font-medium">{stats.devices.online}</span>
+                    </div>
+                  )}
+                  {stats.automations?.enabled !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Automations</span>
+                      <span className="text-sm text-purple-400 font-medium">{stats.automations.enabled}/{stats.automations.total}</span>
+                    </div>
+                  )}
+                  {stats.realTime?.connected && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">WebSocket</span>
+                      <span className="text-sm text-green-400 font-medium">Connected</span>
+                    </div>
+                  )}
+                </>
+              )}
+              
               {service.type === 'unraid' && (
                 <>
                   {stats.uptime && (
@@ -288,6 +323,36 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit }) => {
                       <span className="text-sm text-blue-400 font-medium">{stats.runningContainers}/{stats.containers}</span>
                     </div>
                   )}
+                  
+                  {/* Docker Management Link */}
+                  {stats.containers > 0 && (
+                    <div className="mt-2">
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('Docker button clicked', { serviceName: service.name, serviceType: service.type });
+                          const event = new CustomEvent('showDockerContainers', { 
+                            detail: { serviceName: service.name, serviceType: service.type } 
+                          });
+                          window.dispatchEvent(event);
+                        }}
+                        className="w-full bg-blue-900/20 hover:bg-blue-900/30 border border-blue-600/50 hover:border-blue-500 rounded-lg p-2 transition-all group text-left cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <CubeIcon className="w-4 h-4 text-blue-400" />
+                            <span className="text-blue-300 text-sm font-medium">
+                              Dockers: {stats.runningContainers}/{stats.containers} Running
+                            </span>
+                          </div>
+                          <ArrowTopRightOnSquareIcon className="w-3 h-3 text-blue-400 group-hover:text-blue-300" />
+                        </div>
+                        <p className="text-xs text-blue-400/70 mt-1 ml-6">Click to manage containers</p>
+                      </button>
+                    </div>
+                  )}
+                  
                   {stats.totalVMs !== undefined && (
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-400">VMs</span>

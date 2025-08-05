@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import Header from './components/layout/Header';
 import TabNavigation from './components/layout/TabNavigation';
 import ServicesTab from './components/services/ServicesTab';
-import StatusTabEnhanced from './components/status/StatusTabEnhanced';
+import StatusTab from './components/status/StatusTab';
+import LogsTab from './components/logs/LogsTab';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 
 function App() {
@@ -92,13 +93,12 @@ function App() {
           )}
           
           {activeTab === 'status' && (
-            <StatusTabEnhanced services={services} />
+            <StatusTab services={services} />
           )}
           
           {activeTab === 'logs' && (
-            <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
-              <h2 className="text-xl font-semibold mb-4 text-green-400">System Logs</h2>
-              <p className="text-gray-400">Log viewer coming soon...</p>
+            <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-800 overflow-hidden">
+              <LogsTab />
             </div>
           )}
           

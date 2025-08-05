@@ -2,6 +2,59 @@ const express = require('express');
 const router = express.Router();
 const unraidService = require('./service');
 
+// Test connection endpoint (no database required)
+router.post('/test-connection', async (req, res) => {
+  try {
+    const { host, port, api_key } = req.body;
+    
+    if (!host || !port || !api_key) {
+      return res.status(400).json({
+        success: false,
+        error: 'Host, port, and api_key are required'
+      });
+    }
+    
+    const testConfig = { host, port, api_key };
+    const result = await unraidService.testConnection(testConfig);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error testing Unraid connection:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get stats with direct config (no database required)
+router.post('/get-stats', async (req, res) => {
+  try {
+    const { host, port, api_key } = req.body;
+    
+    if (!host || !port || !api_key) {
+      return res.status(400).json({
+        success: false,
+        error: 'Host, port, and api_key are required'
+      });
+    }
+    
+    const testConfig = { host, port, api_key };
+    const stats = await unraidService.getStats(testConfig);
+    
+    res.json({
+      success: true,
+      stats
+    });
+  } catch (error) {
+    console.error('Error getting Unraid stats:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Get Unraid stats
 router.get('/:id/stats', async (req, res) => {
   try {
@@ -22,7 +75,14 @@ router.get('/:id/stats', async (req, res) => {
     }
     
     const service = result.rows[0];
-    const stats = await unraidService.getStats(service);
+    
+    // Add timeout wrapper to prevent hanging
+    const statsPromise = unraidService.getStats(service);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Stats fetch timeout')), 10000)
+    );
+    
+    const stats = await Promise.race([statsPromise, timeoutPromise]);
     
     // Store stats in database
     await query(
@@ -358,5 +418,104 @@ function generateRecommendations(testResults) {
   
   return recommendations;
 }
+
+// Docker container control routes
+router.post('/:id/docker/:containerName/:action', async (req, res) => {
+  try {
+    const { query } = require('../../database/connection');
+    const { id: serviceId, containerName, action } = req.params;
+    
+    // Get service configuration
+    const result = await query(
+      'SELECT * FROM services WHERE id = $1 AND type = $2',
+      [serviceId, 'unraid']
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Unraid service not found'
+      });
+    }
+    
+    const service = result.rows[0];
+    
+    // Validate action
+    const validActions = ['start', 'stop', 'restart', 'pause', 'unpause'];
+    if (!validActions.includes(action)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid action: ${action}. Valid actions: ${validActions.join(', ')}`
+      });
+    }
+    
+    console.log(`Controlling Docker container ${containerName} on ${service.name}: ${action}`);
+    
+    const result_action = await unraidService.controlDockerContainer(service, containerName, action);
+    
+    res.json({
+      success: result_action.success,
+      message: result_action.message,
+      action,
+      container: containerName,
+      service: service.name,
+      details: result_action
+    });
+    
+  } catch (error) {
+    console.error('Error controlling Docker container:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      action: req.params.action,
+      container: req.params.containerName
+    });
+  }
+});
+
+// Get Docker container logs
+router.get('/:id/docker/:containerName/logs', async (req, res) => {
+  try {
+    const { query } = require('../../database/connection');
+    const { id: serviceId, containerName } = req.params;
+    const lines = parseInt(req.query.lines) || 100;
+    
+    // Get service configuration
+    const result = await query(
+      'SELECT * FROM services WHERE id = $1 AND type = $2',
+      [serviceId, 'unraid']
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Unraid service not found'
+      });
+    }
+    
+    const service = result.rows[0];
+    
+    console.log(`Getting logs for Docker container ${containerName} on ${service.name}`);
+    
+    const logs = await unraidService.getDockerContainerLogs(service, containerName, lines);
+    
+    res.json({
+      success: true,
+      container: containerName,
+      service: service.name,
+      logs: logs.logs,
+      timestamp: logs.timestamp,
+      lines
+    });
+    
+  } catch (error) {
+    console.error('Error getting Docker container logs:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      container: req.params.containerName
+    });
+  }
+});
 
 module.exports = router;

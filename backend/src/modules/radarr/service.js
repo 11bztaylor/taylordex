@@ -32,7 +32,7 @@ class RadarrService extends BaseService {
       // Get queue info - FIXED parsing
       let queueData = { total: 0, items: [] };
       try {
-        const queue = await this.apiCall(config, '/api/v3/queue?pageSize=20&includeUnknownMovieItems=true');
+        const queue = await this.apiCall(config, '/api/v3/queue?pageSize=20');
         console.log('Queue response structure:', Object.keys(queue));
         
         queueData = {

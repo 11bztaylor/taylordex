@@ -14,13 +14,15 @@ const AddServiceModal = ({ isOpen, onClose, onServiceAdded }) => {
   const [error, setError] = useState(null);
 
   const serviceTypes = [
-    { value: 'radarr', label: 'Radarr', defaultPort: 7878, icon: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/radarr.svg' },
-    { value: 'sonarr', label: 'Sonarr', defaultPort: 8989, icon: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/sonarr.svg' },
-    { value: 'bazarr', label: 'Bazarr', defaultPort: 6767, icon: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/bazarr.svg' },
-    { value: 'lidarr', label: 'Lidarr', defaultPort: 8686, icon: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/lidarr.svg' },
-    { value: 'readarr', label: 'Readarr', defaultPort: 8787, icon: 'https://raw.githubusercontent.com/loganmarchione/homelab-svg-assets/main/assets/readarr.svg' },
+    { value: 'radarr', label: 'Radarr', defaultPort: 7878, icon: '/logos/radarr.svg' },
+    { value: 'sonarr', label: 'Sonarr', defaultPort: 8989, icon: '/logos/sonarr.svg' },
+    { value: 'bazarr', label: 'Bazarr', defaultPort: 6767, icon: '/logos/bazarr.svg' },
+    { value: 'lidarr', label: 'Lidarr', defaultPort: 8686, icon: '/logos/lidarr.svg' },
+    { value: 'readarr', label: 'Readarr', defaultPort: 8787, icon: '/logos/readarr.svg' },
     { value: 'prowlarr', label: 'Prowlarr', defaultPort: 9696, icon: '/logos/prowlarr.svg' },
-    { value: 'plex', label: 'Plex', defaultPort: 32400, icon: '/logos/plex.svg' }
+    { value: 'plex', label: 'Plex', defaultPort: 32400, icon: '/logos/plex.svg' },
+    { value: 'homeassistant', label: 'Home Assistant', defaultPort: 8123, icon: '/logos/homeassistant.svg' },
+    { value: 'unraid', label: 'Unraid Server', defaultPort: 443, icon: '/logos/unraid.svg' }
   ];
 
   const handleTypeChange = (type) => {
@@ -189,9 +191,15 @@ const AddServiceModal = ({ isOpen, onClose, onServiceAdded }) => {
               value={formData.apiKey}
               onChange={(e) => setFormData({...formData, apiKey: e.target.value})}
               className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:border-green-500 focus:outline-none"
-              placeholder="Your service API key"
+              placeholder={formData.type === 'unraid' ? 'Unraid GraphQL API key' : 'Your service API key'}
+              required={formData.type === 'unraid'}
             />
-            <p className="text-xs text-gray-500 mt-1">API keys are stored securely and never exposed</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {formData.type === 'unraid' 
+                ? 'Unraid GraphQL API key required. Enable API access in Unraid settings.' 
+                : 'API keys are stored securely and never exposed'
+              }
+            </p>
           </div>
 
           {/* Test Result */}
