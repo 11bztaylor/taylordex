@@ -141,6 +141,15 @@ class DataCollector {
           successRate: data.successRate + '%',
           queries24h: data.totalQueries24h
         };
+      case 'unraid':
+        return {
+          uptime: data.uptime || '0 seconds',
+          containers: data.containers + '/' + (data.runningContainers || 0) + ' running',
+          vms: data.totalVMs + '/' + (data.runningVMs || 0) + ' running',
+          storage: data.storagePercent + '% used',
+          arrayStatus: data.array?.status || 'unknown',
+          diskHealth: `${data.diskHealth?.healthy || 0}/${data.diskHealth?.total || 0} healthy`
+        };
       default:
         return {};
     }

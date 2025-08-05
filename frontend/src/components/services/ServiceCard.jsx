@@ -1,6 +1,6 @@
 import React, { useState, useEffect, Fragment } from 'react';
 import { Menu, Transition } from '@headlessui/react';
-import { EllipsisVerticalIcon, TrashIcon, ArrowPathIcon, PencilIcon, FilmIcon, TvIcon, MusicalNoteIcon, BookOpenIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { EllipsisVerticalIcon, TrashIcon, ArrowPathIcon, PencilIcon, FilmIcon, TvIcon, MusicalNoteIcon, BookOpenIcon, MagnifyingGlassIcon, ServerIcon, PlayIcon } from '@heroicons/react/24/outline';
 
 const ServiceCard = ({ service, onDelete, onRefresh, onEdit }) => {
   const [stats, setStats] = useState(null);
@@ -15,7 +15,9 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit }) => {
     lidarr: MusicalNoteIcon,
     readarr: BookOpenIcon,
     prowlarr: MagnifyingGlassIcon,
-    bazarr: TvIcon
+    bazarr: TvIcon,
+    plex: PlayIcon,
+    unraid: ServerIcon
   };
 
   // Brand colors for each service
@@ -25,7 +27,9 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit }) => {
     bazarr: 'from-purple-500 to-purple-600',
     lidarr: 'from-green-500 to-green-600',
     readarr: 'from-red-500 to-red-600',
-    prowlarr: 'from-yellow-500 to-yellow-600'
+    prowlarr: 'from-yellow-500 to-yellow-600',
+    plex: 'from-yellow-400 to-orange-500',
+    unraid: 'from-orange-500 to-red-500'
   };
 
   useEffect(() => {
@@ -34,7 +38,7 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit }) => {
 
   const fetchStats = async () => {
     try {
-      if (['radarr', 'sonarr', 'lidarr', 'readarr', 'bazarr', 'prowlarr'].includes(service.type)) {
+      if (['radarr', 'sonarr', 'lidarr', 'readarr', 'bazarr', 'prowlarr', 'plex', 'unraid'].includes(service.type)) {
         const response = await fetch(`http://localhost:5000/api/${service.type}/${service.id}/stats`);
         const data = await response.json();
         
@@ -225,6 +229,83 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit }) => {
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-400">Episodes</span>
                       <span className="text-sm text-green-400 font-medium">{stats.episodes?.toLocaleString() || 'N/A'}</span>
+                    </div>
+                  )}
+                </>
+              )}
+              
+              {service.type === 'plex' && (
+                <>
+                  {stats.movies !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Movies</span>
+                      <span className="text-sm text-green-400 font-medium">{stats.movies.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {stats.shows !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Shows</span>
+                      <span className="text-sm text-green-400 font-medium">{stats.shows.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {stats.activeStreams !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Active Streams</span>
+                      <span className="text-sm text-blue-400 font-medium">{stats.activeStreams}</span>
+                    </div>
+                  )}
+                </>
+              )}
+              
+              {service.type === 'prowlarr' && (
+                <>
+                  {stats.indexers !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Indexers</span>
+                      <span className="text-sm text-green-400 font-medium">{stats.indexers}</span>
+                    </div>
+                  )}
+                  {stats.successRate !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Success Rate</span>
+                      <span className="text-sm text-green-400 font-medium">{stats.successRate}%</span>
+                    </div>
+                  )}
+                </>
+              )}
+              
+              {service.type === 'unraid' && (
+                <>
+                  {stats.uptime && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Uptime</span>
+                      <span className="text-sm text-green-400 font-medium">{stats.uptime}</span>
+                    </div>
+                  )}
+                  {stats.containers !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Containers</span>
+                      <span className="text-sm text-blue-400 font-medium">{stats.runningContainers}/{stats.containers}</span>
+                    </div>
+                  )}
+                  {stats.totalVMs !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">VMs</span>
+                      <span className="text-sm text-purple-400 font-medium">{stats.runningVMs}/{stats.totalVMs}</span>
+                    </div>
+                  )}
+                  {stats.array?.status && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Array Status</span>
+                      <span className={`text-sm font-medium ${stats.array.status === 'started' ? 'text-green-400' : 'text-yellow-400'}`}>
+                        {stats.array.status}
+                      </span>
+                    </div>
+                  )}
+                  {stats.storagePercent !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Storage Used</span>
+                      <span className="text-sm text-orange-400 font-medium">{stats.storagePercent}%</span>
                     </div>
                   )}
                 </>

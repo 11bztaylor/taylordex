@@ -91,7 +91,9 @@ class ServicesController {
         bazarr: '/api/v1/system/status',
         lidarr: '/api/v1/system/status',
         readarr: '/api/v1/system/status',
-        prowlarr: '/api/v1/system/status'
+        prowlarr: '/api/v1/system/status',
+        plex: '/identity',
+        unraid: '/graphql'
       };
 
       const testEndpoint = testEndpoints[type] || '/api/system/status';
@@ -242,7 +244,9 @@ class ServicesController {
       bazarr: '/api/v1/system/status',
       lidarr: '/api/v1/system/status',
       readarr: '/api/v1/system/status',
-      prowlarr: '/api/v1/system/status'
+      prowlarr: '/api/v1/system/status',
+      plex: '/identity',
+      unraid: '/graphql'
     };
     return endpoints[type] || '/api/system/status';
   }
