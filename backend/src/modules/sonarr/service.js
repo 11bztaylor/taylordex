@@ -99,17 +99,31 @@ class SonarrService extends BaseService {
         }))
         .slice(0, 20);
 
-      // Queue details
+      // Queue details with enhanced episode parsing
       const queueDetails = {
         total: queue.totalRecords || 0,
-        items: queue.records?.map(q => ({
-          series: q.series?.title || 'Unknown',
-          episode: q.episode ? `S${String(q.episode.seasonNumber).padStart(2, '0')}E${String(q.episode.episodeNumber).padStart(2, '0')}` : 'Unknown',
-          progress: Math.round(q.sizeleft && q.size ? ((q.size - q.sizeleft) / q.size) * 100 : 0),
-          eta: q.timeleft || 'Unknown',
-          size: this.formatBytes(q.size || 0),
-          status: q.status
-        })).slice(0, 10) || []
+        items: queue.records?.map(q => {
+          // Enhanced title parsing
+          let episodeTitle = 'Unknown';
+          if (q.episode?.title) {
+            episodeTitle = q.episode.title;
+          } else if (q.title) {
+            // Extract episode title from download title if needed
+            const match = q.title.match(/S\d+E\d+\s*[-\.]\s*(.+?)(?:\s*(?:720p|1080p|2160p|HDTV|WEB|BluRay))/i);
+            episodeTitle = match ? match[1].trim() : q.title;
+          }
+          
+          return {
+            series: q.series?.title || 'Unknown',
+            episode: q.episode ? `S${String(q.episode.seasonNumber).padStart(2, '0')}E${String(q.episode.episodeNumber).padStart(2, '0')}` : 'Unknown',
+            episodeTitle: episodeTitle,
+            progress: Math.round(q.sizeleft && q.size ? ((q.size - q.sizeleft) / q.size) * 100 : 0),
+            eta: q.timeleft || 'Unknown',
+            size: this.formatBytes(q.size || 0),
+            status: q.status,
+            quality: q.quality?.quality?.name || 'Unknown'
+          };
+        }).slice(0, 10) || []
       };
 
       // Health
