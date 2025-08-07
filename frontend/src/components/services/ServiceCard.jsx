@@ -5,15 +5,18 @@ import {
   FilmIcon, TvIcon, MusicalNoteIcon, BookOpenIcon, MagnifyingGlassIcon, 
   ServerIcon, PlayIcon, CubeIcon, ArrowTopRightOnSquareIcon, HomeIcon,
   ChartBarIcon, CloudIcon, ShieldCheckIcon, CodeBracketIcon, 
-  EyeIcon, WrenchScrewdriverIcon, CircleStackIcon, PlayCircleIcon
+  EyeIcon, WrenchScrewdriverIcon, CircleStackIcon, PlayCircleIcon,
+  DocumentDuplicateIcon
 } from '@heroicons/react/24/outline';
 import apiClient from '../../api/client';
+import PlexDuplicatesModal from '../plex/PlexDuplicatesModal';
 
 const ServiceCard = ({ service, onDelete, onRefresh, onEdit, onClick }) => {
   const [stats, setStats] = useState(service.stats || null);
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [logoError, setLogoError] = useState(false);
+  const [showDuplicatesModal, setShowDuplicatesModal] = useState(false);
 
   // Updated icons for generic service types and specific services
   const ServiceIcons = {
@@ -313,22 +316,46 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit, onClick }) => {
               {/* Dynamic stats based on service type */}
               {service.type === 'radarr' && (
                 <>
-                  {stats.movies !== undefined && (
+                  {stats.movies !== undefined && stats.movies !== null ? (
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-400">Movies</span>
                       <span className="text-sm text-green-400 font-medium">{stats.movies.toLocaleString()}</span>
                     </div>
-                  )}
-                  {stats.files !== undefined && (
+                  ) : stats.error ? (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Movies</span>
+                      <span className="text-sm text-red-400 font-medium text-xs">Auth Error</span>
+                    </div>
+                  ) : null}
+                  
+                  {stats.files !== undefined && stats.files !== null ? (
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-400">Files</span>
                       <span className="text-sm text-blue-400 font-medium">{stats.files.toLocaleString()}</span>
                     </div>
-                  )}
-                  {stats.missing !== undefined && (
+                  ) : stats.error ? (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Files</span>
+                      <span className="text-sm text-red-400 font-medium text-xs">Auth Error</span>
+                    </div>
+                  ) : null}
+                  
+                  {stats.missing !== undefined && stats.missing !== null ? (
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-400">Missing</span>
                       <span className="text-sm text-amber-400 font-medium">{stats.missing.toLocaleString()}</span>
+                    </div>
+                  ) : stats.error ? (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Missing</span>
+                      <span className="text-sm text-red-400 font-medium text-xs">Auth Error</span>
+                    </div>
+                  ) : null}
+                  
+                  {stats.monitored !== undefined && stats.monitored !== null && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Monitored</span>
+                      <span className="text-sm text-purple-400 font-medium">{stats.monitored.toLocaleString()}</span>
                     </div>
                   )}
                 </>
@@ -336,22 +363,58 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit, onClick }) => {
               
               {service.type === 'sonarr' && (
                 <>
-                  {stats.series !== undefined && (
+                  {stats.series !== undefined && stats.series !== null ? (
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-400">Series</span>
                       <span className="text-sm text-green-400 font-medium">{stats.series.toLocaleString()}</span>
                     </div>
-                  )}
-                  {stats.episodes !== undefined && (
+                  ) : stats.error ? (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Series</span>
+                      <span className="text-sm text-red-400 font-medium text-xs">Auth Error</span>
+                    </div>
+                  ) : null}
+                  
+                  {stats.episodes !== undefined && stats.episodes !== null ? (
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-400">Episodes</span>
                       <span className="text-sm text-green-400 font-medium">{stats.episodes?.toLocaleString() || 'N/A'}</span>
                     </div>
-                  )}
-                  {stats.files !== undefined && (
+                  ) : stats.error ? (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Episodes</span>
+                      <span className="text-sm text-red-400 font-medium text-xs">Auth Error</span>
+                    </div>
+                  ) : null}
+                  
+                  {stats.files !== undefined && stats.files !== null ? (
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-400">Files</span>
                       <span className="text-sm text-blue-400 font-medium">{stats.files?.toLocaleString() || 'N/A'}</span>
+                    </div>
+                  ) : stats.error ? (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Files</span>
+                      <span className="text-sm text-red-400 font-medium text-xs">Auth Error</span>
+                    </div>
+                  ) : null}
+                  
+                  {stats.missing !== undefined && stats.missing !== null ? (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Missing</span>
+                      <span className="text-sm text-amber-400 font-medium">{stats.missing.toLocaleString()}</span>
+                    </div>
+                  ) : stats.error ? (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Missing</span>
+                      <span className="text-sm text-red-400 font-medium text-xs">Auth Error</span>
+                    </div>
+                  ) : null}
+                  
+                  {stats.monitored !== undefined && stats.monitored !== null && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Monitored</span>
+                      <span className="text-sm text-purple-400 font-medium">{stats.monitored.toLocaleString()}</span>
                     </div>
                   )}
                 </>
@@ -389,6 +452,29 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit, onClick }) => {
                       <span className="text-sm text-purple-400 font-medium">{stats.totalUsers}</span>
                     </div>
                   )}
+                  
+                  {/* Duplicates Management Button for Plex */}
+                  <div className="mt-3 pt-3 border-t border-gray-800/50">
+                    <button 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setShowDuplicatesModal(true);
+                      }}
+                      className="w-full bg-purple-900/20 hover:bg-purple-900/30 border border-purple-600/50 hover:border-purple-500 rounded-lg p-2 transition-all group text-left cursor-pointer"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <DocumentDuplicateIcon className="w-4 h-4 text-purple-400" />
+                          <span className="text-purple-300 text-sm font-medium">
+                            Manage Duplicates
+                          </span>
+                        </div>
+                        <ArrowTopRightOnSquareIcon className="w-3 h-3 text-purple-400 group-hover:text-purple-300" />
+                      </div>
+                      <p className="text-xs text-purple-400/70 mt-1 ml-6">Find and remove duplicate media</p>
+                    </button>
+                  </div>
                 </>
               )}
               
@@ -452,15 +538,27 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit, onClick }) => {
                       <span className="text-sm text-blue-400 font-medium">{stats.active}</span>
                     </div>
                   )}
+                  {stats.seeding !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Seeding</span>
+                      <span className="text-sm text-green-400 font-medium">{stats.seeding}</span>
+                    </div>
+                  )}
+                  {stats.downloading !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Downloading</span>
+                      <span className="text-sm text-yellow-400 font-medium">{stats.downloading}</span>
+                    </div>
+                  )}
                   {stats.downloadSpeed && (
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-400">Download</span>
+                      <span className="text-sm text-gray-400">Down Speed</span>
                       <span className="text-sm text-yellow-400 font-medium">{stats.downloadSpeed}</span>
                     </div>
                   )}
                   {stats.uploadSpeed && (
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-400">Upload</span>
+                      <span className="text-sm text-gray-400">Up Speed</span>
                       <span className="text-sm text-purple-400 font-medium">{stats.uploadSpeed}</span>
                     </div>
                   )}
@@ -579,6 +677,15 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit, onClick }) => {
           )}
         </div>
       </div>
+      
+      {/* Plex Duplicates Modal */}
+      {service.type === 'plex' && (
+        <PlexDuplicatesModal 
+          isOpen={showDuplicatesModal}
+          onClose={() => setShowDuplicatesModal(false)}
+          service={service}
+        />
+      )}
     </div>
   );
 };

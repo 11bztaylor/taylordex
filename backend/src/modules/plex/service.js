@@ -203,6 +203,176 @@ class PlexService extends BaseService {
       };
     }
   }
+
+  async getDuplicates(config) {
+    try {
+      console.log(`Fetching Plex duplicates from ${config.host}:${config.port}`);
+      
+      // Get all libraries first
+      const libraries = await this.apiCall(config, '/library/sections');
+      const duplicatesByLibrary = {};
+      let totalDuplicates = 0;
+      
+      if (libraries.MediaContainer?.Directory) {
+        for (const lib of libraries.MediaContainer.Directory) {
+          try {
+            // Try the duplicates endpoint for this library
+            const duplicates = await this.apiCall(config, `/library/sections/${lib.key}/duplicates`);
+            
+            if (duplicates.MediaContainer?.Metadata && duplicates.MediaContainer.Metadata.length > 0) {
+              const processedDuplicates = await Promise.all(
+                duplicates.MediaContainer.Metadata.map(async (item) => {
+                  // Get detailed metadata for each duplicate item
+                  try {
+                    const details = await this.apiCall(config, `/library/metadata/${item.ratingKey}`);
+                    const metadata = details.MediaContainer?.Metadata?.[0];
+                    
+                    if (!metadata) return null;
+                    
+                    // Process media files for each duplicate
+                    const files = [];
+                    if (metadata.Media) {
+                      for (const media of metadata.Media) {
+                        if (media.Part) {
+                          for (const part of media.Part) {
+                            files.push({
+                              file: part.file,
+                              size: part.size || 0,
+                              duration: part.duration || 0,
+                              container: part.container,
+                              videoResolution: media.videoResolution || 'Unknown',
+                              bitrate: media.bitrate || 0,
+                              audioChannels: media.audioChannels || 0,
+                              videoCodec: media.videoCodec || 'Unknown',
+                              audioCodec: media.audioCodec || 'Unknown'
+                            });
+                          }
+                        }
+                      }
+                    }
+                    
+                    return {
+                      ratingKey: metadata.ratingKey,
+                      title: metadata.title,
+                      year: metadata.year,
+                      duration: metadata.duration,
+                      addedAt: metadata.addedAt ? new Date(metadata.addedAt * 1000).toISOString() : null,
+                      updatedAt: metadata.updatedAt ? new Date(metadata.updatedAt * 1000).toISOString() : null,
+                      rating: metadata.rating,
+                      thumb: metadata.thumb,
+                      files: files,
+                      totalSize: files.reduce((sum, f) => sum + (f.size || 0), 0),
+                      bestQuality: files.reduce((best, current) => {
+                        const currentRes = this.parseResolution(current.videoResolution);
+                        const bestRes = this.parseResolution(best?.videoResolution);
+                        return currentRes > bestRes ? current : best;
+                      }, files[0])
+                    };
+                  } catch (detailError) {
+                    console.error(`Error fetching details for ${item.ratingKey}:`, detailError.message);
+                    return {
+                      ratingKey: item.ratingKey,
+                      title: item.title || 'Unknown',
+                      year: item.year,
+                      error: 'Could not fetch details',
+                      files: []
+                    };
+                  }
+                })
+              );
+              
+              // Group duplicates by title
+              const groupedDuplicates = {};
+              processedDuplicates.filter(Boolean).forEach(duplicate => {
+                const key = `${duplicate.title}_${duplicate.year || 'unknown'}`;
+                if (!groupedDuplicates[key]) {
+                  groupedDuplicates[key] = {
+                    title: duplicate.title,
+                    year: duplicate.year,
+                    items: [],
+                    totalSize: 0,
+                    duplicateCount: 0
+                  };
+                }
+                groupedDuplicates[key].items.push(duplicate);
+                groupedDuplicates[key].totalSize += duplicate.totalSize || 0;
+                groupedDuplicates[key].duplicateCount = groupedDuplicates[key].items.length;
+              });
+              
+              // Only include groups with actual duplicates (more than 1 item)
+              const actualDuplicates = Object.values(groupedDuplicates).filter(group => group.items.length > 1);
+              
+              if (actualDuplicates.length > 0) {
+                duplicatesByLibrary[lib.title] = {
+                  libraryKey: lib.key,
+                  libraryType: lib.type,
+                  duplicateGroups: actualDuplicates,
+                  totalGroups: actualDuplicates.length,
+                  totalItems: actualDuplicates.reduce((sum, group) => sum + group.items.length, 0)
+                };
+                
+                totalDuplicates += actualDuplicates.reduce((sum, group) => sum + group.items.length, 0);
+              }
+            }
+          } catch (libError) {
+            console.error(`Error fetching duplicates for library ${lib.title}:`, libError.message);
+            // Continue with other libraries
+          }
+        }
+      }
+      
+      return {
+        success: true,
+        totalDuplicates,
+        libraryCount: Object.keys(duplicatesByLibrary).length,
+        duplicatesByLibrary,
+        scannedAt: new Date().toISOString()
+      };
+      
+    } catch (error) {
+      console.error('Error fetching Plex duplicates:', error.message);
+      return {
+        success: false,
+        error: error.message,
+        totalDuplicates: 0,
+        libraryCount: 0,
+        duplicatesByLibrary: {}
+      };
+    }
+  }
+
+  async deleteDuplicate(config, ratingKey) {
+    try {
+      console.log(`Deleting Plex item ${ratingKey} from ${config.host}:${config.port}`);
+      
+      await this.apiCall(config, `/library/metadata/${ratingKey}`, 'DELETE');
+      
+      return {
+        success: true,
+        message: 'Item deleted successfully'
+      };
+    } catch (error) {
+      console.error('Error deleting Plex item:', error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  parseResolution(resolution) {
+    if (!resolution) return 0;
+    const resMap = {
+      '4k': 2160,
+      '2160p': 2160,
+      '1080p': 1080,
+      '720p': 720,
+      '480p': 480,
+      '360p': 360,
+      'sd': 480
+    };
+    return resMap[resolution.toLowerCase()] || 0;
+  }
 }
 
 module.exports = new PlexService();
