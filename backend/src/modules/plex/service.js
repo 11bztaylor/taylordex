@@ -214,10 +214,16 @@ class PlexService extends BaseService {
       let totalDuplicates = 0;
       
       if (libraries.MediaContainer?.Directory) {
+        console.log(`Found ${libraries.MediaContainer.Directory.length} libraries:`, 
+          libraries.MediaContainer.Directory.map(l => `${l.title} (key: ${l.key}, type: ${l.type})`));
+        
         for (const lib of libraries.MediaContainer.Directory) {
           try {
+            const duplicatesUrl = `/library/sections/${lib.key}/duplicates`;
+            console.log(`Checking duplicates for library "${lib.title}" at URL: ${duplicatesUrl}`);
+            
             // Try the duplicates endpoint for this library
-            const duplicates = await this.apiCall(config, `/library/sections/${lib.key}/duplicates`);
+            const duplicates = await this.apiCall(config, duplicatesUrl);
             
             if (duplicates.MediaContainer?.Metadata && duplicates.MediaContainer.Metadata.length > 0) {
               const processedDuplicates = await Promise.all(
@@ -316,17 +322,34 @@ class PlexService extends BaseService {
             }
           } catch (libError) {
             console.error(`Error fetching duplicates for library ${lib.title}:`, libError.message);
-            // Continue with other libraries
+            
+            // Try alternative approach - search for duplicates manually
+            if (libError.message.includes('404')) {
+              console.log(`Standard duplicates endpoint not available for ${lib.title}, trying manual duplicate detection...`);
+              try {
+                await this.findDuplicatesManually(config, lib, duplicatesByLibrary);
+              } catch (manualError) {
+                console.error(`Manual duplicate detection also failed for ${lib.title}:`, manualError.message);
+              }
+            }
           }
         }
       }
+      
+      // Recalculate total duplicates including manual detection
+      totalDuplicates = Object.values(duplicatesByLibrary).reduce((sum, lib) => {
+        return sum + (lib.totalItems || 0);
+      }, 0);
       
       return {
         success: true,
         totalDuplicates,
         libraryCount: Object.keys(duplicatesByLibrary).length,
         duplicatesByLibrary,
-        scannedAt: new Date().toISOString()
+        scannedAt: new Date().toISOString(),
+        note: Object.values(duplicatesByLibrary).some(lib => lib.detectionMethod === 'manual') 
+          ? 'Some duplicates found using manual detection due to API limitations' 
+          : 'Standard Plex duplicates API used'
       };
       
     } catch (error) {
@@ -338,6 +361,131 @@ class PlexService extends BaseService {
         libraryCount: 0,
         duplicatesByLibrary: {}
       };
+    }
+  }
+
+  async findDuplicatesManually(config, library, duplicatesByLibrary) {
+    console.log(`Manual duplicate detection for library: ${library.title} (${library.type})`);
+    
+    try {
+      // Get all items in the library (first 1000 to avoid timeout)
+      const allItems = await this.apiCall(config, `/library/sections/${library.key}/all?X-Plex-Container-Size=1000`);
+      
+      if (!allItems.MediaContainer?.Metadata) {
+        console.log(`No items found in library ${library.title}`);
+        return;
+      }
+      
+      console.log(`Analyzing ${allItems.MediaContainer.Metadata.length} items for duplicates in ${library.title}...`);
+      
+      // Group items by title and year
+      const titleGroups = {};
+      
+      for (const item of allItems.MediaContainer.Metadata) {
+        // Create a key based on title and year
+        const title = item.title?.toLowerCase().trim();
+        const year = item.year || 'unknown';
+        const key = `${title}_${year}`;
+        
+        if (!titleGroups[key]) {
+          titleGroups[key] = {
+            title: item.title,
+            year: item.year,
+            items: []
+          };
+        }
+        
+        titleGroups[key].items.push({
+          ratingKey: item.ratingKey,
+          title: item.title,
+          year: item.year,
+          addedAt: item.addedAt ? new Date(item.addedAt * 1000).toISOString() : null,
+          duration: item.duration,
+          rating: item.rating,
+          thumb: item.thumb
+        });
+      }
+      
+      // Find groups with more than one item (potential duplicates)
+      const duplicateGroups = Object.values(titleGroups).filter(group => group.items.length > 1);
+      
+      if (duplicateGroups.length > 0) {
+        console.log(`Found ${duplicateGroups.length} potential duplicate groups in ${library.title}`);
+        
+        // Get detailed info for each duplicate
+        const detailedDuplicates = [];
+        
+        for (const group of duplicateGroups.slice(0, 20)) { // Limit to first 20 groups to avoid timeout
+          try {
+            const detailedItems = await Promise.all(
+              group.items.map(async (item) => {
+                try {
+                  const details = await this.apiCall(config, `/library/metadata/${item.ratingKey}`);
+                  const metadata = details.MediaContainer?.Metadata?.[0];
+                  
+                  if (!metadata) return item;
+                  
+                  // Get file information
+                  const files = [];
+                  if (metadata.Media) {
+                    for (const media of metadata.Media) {
+                      if (media.Part) {
+                        for (const part of media.Part) {
+                          files.push({
+                            file: part.file,
+                            size: part.size || 0,
+                            container: part.container,
+                            videoResolution: media.videoResolution || 'Unknown',
+                            bitrate: media.bitrate || 0
+                          });
+                        }
+                      }
+                    }
+                  }
+                  
+                  return {
+                    ...item,
+                    files: files,
+                    totalSize: files.reduce((sum, f) => sum + (f.size || 0), 0)
+                  };
+                } catch (detailError) {
+                  console.error(`Error getting details for item ${item.ratingKey}:`, detailError.message);
+                  return item;
+                }
+              })
+            );
+            
+            detailedDuplicates.push({
+              title: group.title,
+              year: group.year,
+              items: detailedItems,
+              totalSize: detailedItems.reduce((sum, item) => sum + (item.totalSize || 0), 0),
+              duplicateCount: detailedItems.length
+            });
+          } catch (groupError) {
+            console.error(`Error processing duplicate group ${group.title}:`, groupError.message);
+          }
+        }
+        
+        if (detailedDuplicates.length > 0) {
+          duplicatesByLibrary[library.title] = {
+            libraryKey: library.key,
+            libraryType: library.type,
+            duplicateGroups: detailedDuplicates,
+            totalGroups: detailedDuplicates.length,
+            totalItems: detailedDuplicates.reduce((sum, group) => sum + group.items.length, 0),
+            detectionMethod: 'manual'
+          };
+          
+          console.log(`✅ Found ${detailedDuplicates.length} duplicate groups in ${library.title} using manual detection`);
+        }
+      } else {
+        console.log(`No duplicates found in ${library.title} using manual detection`);
+      }
+      
+    } catch (error) {
+      console.error(`Manual duplicate detection failed for ${library.title}:`, error.message);
+      throw error;
     }
   }
 
