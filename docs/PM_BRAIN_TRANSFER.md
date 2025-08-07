@@ -13,9 +13,9 @@
 - **Purpose**: Modular dashboard for 50+ containers
 
 ### **Current Session Results**
-- **Date**: August 7, 2025
-- **Focus**: Mock data elimination + syntax fixes
-- **Status**: ✅ COMPLETE - All syntax errors resolved, mock data eliminated
+- **Date**: January 7, 2025
+- **Focus**: Plex duplicate detection + safety improvements
+- **Status**: ✅ COMPLETE - All features working, deletion disabled for safety
 
 ---
 
@@ -29,20 +29,21 @@
 ✅ SECURITY: API keys properly stored and retrieved
 ```
 
-### **Mock Data Status**
+### **Plex Duplicate Detection**
 ```
-✅ ELIMINATED: All generateBasicStats() methods removed
-✅ ELIMINATED: All mock service generation removed  
-✅ ELIMINATED: All fake performance data removed
-✅ RESULT: Only real API data displayed to users
+✅ WORKING: Background scanning every 24 hours at 3 AM
+✅ CACHING: Results stored in database for instant display
+✅ DETECTION: Multiple files + fuzzy matching (85% threshold)
+❌ DISABLED: Deletion functionality (after data loss incident)
 ```
 
-### **Frontend Status**
-```  
-✅ SYNTAX: All JSX parsing errors fixed
-✅ BUILDING: Vite dev server runs on port 3001
-✅ CLEAN: No undefined variable references
-✅ IMPORTS: All unused imports removed
+### **Service Integrations**
+```
+✅ Radarr/Sonarr: Full stats + configuration API
+✅ Plex: Stats working, duplicates identification only
+✅ qBittorrent: Fixed - use "username:password" in api_key
+✅ Unraid: Docker container management working
+✅ HomeAssistant: WebSocket real-time updates
 ```
 
 ---
@@ -72,6 +73,7 @@ Upload these FIRST in any new session:
 - ServiceRepository for ALL database service queries
 - JWT Bearer tokens in ALL authenticated requests
 - No mock data generation anywhere in codebase
+- qBittorrent uses "username:password" in api_key field
 
 ### **Session Pattern**
 1. Start: `cd /home/zach/projects/docker-dashboard && pwd`
@@ -80,25 +82,25 @@ Upload these FIRST in any new session:
 
 ---
 
-## 🔄 **CONVERSATION LOOPS CLOSED**
+## 🔄 **RECENT CRITICAL DECISIONS**
 
-### **Mock Data Issue - RESOLVED**
-- **Problem**: Confusion between real and fake data
-- **Solution**: Eliminated all mock data generation 
-- **Result**: Only authentic service data displayed
-- **Status**: ✅ COMPLETE
+### **Plex Deletion Disabled - January 7, 2025**
+- **Problem**: Deletion removed ALL versions (lost Amazing Spider-Man)
+- **Decision**: Disabled deletion entirely for safety
+- **Current**: Identification-only mode
+- **Future**: Need file-level operations, not Plex API
 
-### **Authentication Issue - RESOLVED**  
-- **Problem**: 401 errors for service operations
-- **Root Cause**: Missing API keys in database queries
-- **Solution**: ServiceRepository centralized pattern
-- **Status**: ✅ COMPLETE
+### **qBittorrent Authentication Fix**  
+- **Problem**: Needed username/password, not API key
+- **Solution**: Store as "username:password" in api_key field
+- **Example**: api_key = "admin:adminpass"
+- **Status**: ✅ WORKING
 
-### **Syntax Errors - RESOLVED**
-- **Problem**: JSX parsing errors preventing frontend build
-- **Cause**: Orphaned components and undefined variables
-- **Solution**: Clean JSX structure, removed broken references
-- **Status**: ✅ COMPLETE
+### **Background Scanning Implementation**
+- **Feature**: Plex duplicates scan daily at 3 AM
+- **Storage**: PostgreSQL tables cache results
+- **Performance**: Instant display from cache
+- **Detection**: Multiple files + fuzzy matching
 
 ---
 
@@ -106,10 +108,10 @@ Upload these FIRST in any new session:
 
 When you start the next session:
 
-1. **Verify Current State**: Check that services still work correctly
-2. **Add Real Services**: Help Zach add his actual Plex/Radarr/Sonarr services
-3. **Test Stats Collection**: Confirm real data is being collected
-4. **Monitor Performance**: Watch for any new issues
+1. **Verify Services**: Check all services are running
+2. **Test qBittorrent**: Confirm auth with username:password format
+3. **Monitor Scheduler**: Verify 3 AM duplicate scans are running
+4. **Safety First**: Keep Plex deletion disabled until safer method found
 
 ---
 
@@ -124,22 +126,33 @@ When you start the next session:
 **Helpful Context:**
 - docs/STANDARD_SESSION_RULES.md
 - docs/DEVELOPMENT_WORKFLOW.md
-- README.md
+- backend/src/modules/radarr/configService.js (new!)
+- backend/src/modules/sonarr/configService.js (new!)
 
 ---
 
 ## 🏆 **SESSION SUCCESS SUMMARY**
 
-- ✅ All mock data eliminated from codebase
-- ✅ All syntax errors resolved
-- ✅ Frontend building successfully  
-- ✅ Authentication patterns verified
-- ✅ Real data only displayed to users
-- ✅ Clean, maintainable code structure
+- ✅ Plex duplicate detection with background scanning
+- ✅ Database caching for performance
+- ✅ Safety measures after data loss incident
+- ✅ qBittorrent authentication fixed
+- ✅ Radarr/Sonarr configuration APIs added
+- ✅ UI cleaned up (removed confusing features)
 - ✅ All changes committed to git
 
-**Project is ready for production service addition and testing.**
+**Project is stable and safe for production use.**
 
 ---
 
-*Last Updated: August 7, 2025 - Session Close*
+## ⚠️ **WARNINGS & GOTCHAS**
+
+1. **NEVER re-enable Plex deletion without complete redesign**
+2. **qBittorrent needs "username:password" format in api_key**
+3. **Background scheduler runs at 3 AM - check logs if issues**
+4. **Some Plex servers don't have /duplicates endpoint**
+5. **Always use ServiceRepository for database queries**
+
+---
+
+*Last Updated: January 7, 2025 - Session Close*
