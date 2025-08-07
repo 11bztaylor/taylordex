@@ -365,8 +365,8 @@ class PlexService extends BaseService {
     console.log(`Manual duplicate detection for library: ${library.title} (${library.type})`);
     
     try {
-      // Get all items in the library (first 1000 to avoid timeout)
-      const allItems = await this.apiCall(config, `/library/sections/${library.key}/all?X-Plex-Container-Size=1000`);
+      // Get all items in the library (increased to 5000 for large libraries)
+      const allItems = await this.apiCall(config, `/library/sections/${library.key}/all?X-Plex-Container-Size=5000`);
       
       if (!allItems.MediaContainer?.Metadata) {
         console.log(`No items found in library ${library.title}`);
@@ -375,32 +375,59 @@ class PlexService extends BaseService {
       
       console.log(`Analyzing ${allItems.MediaContainer.Metadata.length} items for duplicates in ${library.title}...`);
       
-      // Group items by title and year
+      // Enhanced grouping with fuzzy matching and multiple strategies
       const titleGroups = {};
       
       for (const item of allItems.MediaContainer.Metadata) {
-        // Create a key based on title and year
-        const title = item.title?.toLowerCase().trim();
+        const originalTitle = item.title || '';
         const year = item.year || 'unknown';
-        const key = `${title}_${year}`;
         
-        if (!titleGroups[key]) {
-          titleGroups[key] = {
-            title: item.title,
-            year: item.year,
-            items: []
-          };
+        // Multiple matching strategies
+        const matchingKeys = this.generateMatchingKeys(originalTitle, year);
+        
+        let matched = false;
+        
+        // Try to match with existing groups using any of the keys
+        for (const [existingKey, group] of Object.entries(titleGroups)) {
+          if (this.isLikelyDuplicate(matchingKeys, existingKey, originalTitle, group.items[0]?.title)) {
+            group.items.push({
+              ratingKey: item.ratingKey,
+              title: item.title,
+              year: item.year,
+              originalTitle: item.originalTitle,
+              sortTitle: item.titleSort,
+              addedAt: item.addedAt ? new Date(item.addedAt * 1000).toISOString() : null,
+              duration: item.duration,
+              rating: item.rating,
+              thumb: item.thumb,
+              guid: item.guid
+            });
+            matched = true;
+            break;
+          }
         }
         
-        titleGroups[key].items.push({
-          ratingKey: item.ratingKey,
-          title: item.title,
-          year: item.year,
-          addedAt: item.addedAt ? new Date(item.addedAt * 1000).toISOString() : null,
-          duration: item.duration,
-          rating: item.rating,
-          thumb: item.thumb
-        });
+        // If no match found, create new group
+        if (!matched) {
+          const primaryKey = matchingKeys[0]; // Use the normalized title as primary key
+          titleGroups[primaryKey] = {
+            title: originalTitle,
+            year: year,
+            matchingKeys: matchingKeys,
+            items: [{
+              ratingKey: item.ratingKey,
+              title: item.title,
+              year: item.year,
+              originalTitle: item.originalTitle,
+              sortTitle: item.titleSort,
+              addedAt: item.addedAt ? new Date(item.addedAt * 1000).toISOString() : null,
+              duration: item.duration,
+              rating: item.rating,
+              thumb: item.thumb,
+              guid: item.guid
+            }]
+          };
+        }
       }
       
       // Find groups with more than one item (potential duplicates)
@@ -417,7 +444,7 @@ class PlexService extends BaseService {
         // Get detailed info for each duplicate
         const detailedDuplicates = [];
         
-        for (const group of duplicateGroups.slice(0, 25)) { // Increased to 25 groups to catch more
+        for (const group of duplicateGroups.slice(0, 50)) { // Increased to 50 groups to catch many more duplicates
           try {
             const detailedItems = await Promise.all(
               group.items.map(async (item) => {
@@ -667,6 +694,117 @@ class PlexService extends BaseService {
       
       return currentScore < worstScore ? current : worst;
     });
+  }
+
+  normalizeTitle(title) {
+    if (!title) return '';
+    
+    return title
+      .toLowerCase()
+      .trim()
+      // Remove common prefixes/suffixes
+      .replace(/^(the|a|an)\s+/i, '')
+      .replace(/\s+(the|a|an)$/i, '')
+      // Remove special characters and extra spaces
+      .replace(/[^\w\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      // Remove common edition markers
+      .replace(/\s+(director\'?s?\s+cut|extended\s+edition|unrated|remastered|4k|uhd|hdr|dolby|atmos)(\s|$)/gi, ' ')
+      .replace(/\s+(edition|cut|version)(\s|$)/gi, ' ')
+      .trim();
+  }
+
+  generateMatchingKeys(title, year) {
+    const normalized = this.normalizeTitle(title);
+    const keys = [];
+    
+    // Primary key: normalized title + year
+    keys.push(`${normalized}_${year}`);
+    
+    // Secondary keys for fuzzy matching
+    if (normalized.length > 3) {
+      // Remove year patterns from title (e.g., "Movie (2020)" -> "Movie")
+      const titleWithoutYear = normalized.replace(/\s*\(?(\d{4})\)?\s*/g, ' ').trim();
+      if (titleWithoutYear !== normalized) {
+        keys.push(`${titleWithoutYear}_${year}`);
+      }
+      
+      // Remove subtitles after colon/dash
+      const titleBeforeSubtitle = normalized.split(/[:\-–—]/)[0].trim();
+      if (titleBeforeSubtitle !== normalized && titleBeforeSubtitle.length > 2) {
+        keys.push(`${titleBeforeSubtitle}_${year}`);
+      }
+      
+      // Roman numeral variations (II, III, IV, etc.)
+      const romanNumerals = {
+        ' ii': ' 2', ' iii': ' 3', ' iv': ' 4', ' v': ' 5',
+        ' vi': ' 6', ' vii': ' 7', ' viii': ' 8', ' ix': ' 9', ' x': ' 10'
+      };
+      
+      let romanVariant = normalized;
+      for (const [roman, number] of Object.entries(romanNumerals)) {
+        if (romanVariant.includes(roman)) {
+          romanVariant = romanVariant.replace(roman, number);
+          keys.push(`${romanVariant}_${year}`);
+        }
+        // Also try the reverse
+        if (normalized.includes(number)) {
+          const numToRoman = normalized.replace(number, roman);
+          keys.push(`${numToRoman}_${year}`);
+        }
+      }
+    }
+    
+    return keys;
+  }
+
+  isLikelyDuplicate(newKeys, existingKey, newTitle, existingTitle) {
+    // Direct key match
+    if (newKeys.includes(existingKey)) {
+      return true;
+    }
+    
+    // Fuzzy string similarity
+    const similarity = this.calculateStringSimilarity(
+      this.normalizeTitle(newTitle), 
+      this.normalizeTitle(existingTitle)
+    );
+    
+    // Consider it a duplicate if similarity is high (85%+)
+    if (similarity >= 0.85) {
+      console.log(`Fuzzy match: "${newTitle}" vs "${existingTitle}" (${(similarity * 100).toFixed(1)}% similarity)`);
+      return true;
+    }
+    
+    return false;
+  }
+
+  calculateStringSimilarity(str1, str2) {
+    if (!str1 || !str2) return 0;
+    if (str1 === str2) return 1;
+    
+    // Levenshtein distance based similarity
+    const matrix = Array(str2.length + 1).fill(null).map(() => 
+      Array(str1.length + 1).fill(null)
+    );
+    
+    for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+    for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+    
+    for (let j = 1; j <= str2.length; j++) {
+      for (let i = 1; i <= str1.length; i++) {
+        const substitution = matrix[j - 1][i - 1] + (str1[i - 1] === str2[j - 1] ? 0 : 1);
+        matrix[j][i] = Math.min(
+          matrix[j][i - 1] + 1, // insertion
+          matrix[j - 1][i] + 1, // deletion
+          substitution
+        );
+      }
+    }
+    
+    const maxLength = Math.max(str1.length, str2.length);
+    return (maxLength - matrix[str2.length][str1.length]) / maxLength;
   }
 }
 
