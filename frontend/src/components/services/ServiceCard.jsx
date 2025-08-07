@@ -5,18 +5,18 @@ import {
   FilmIcon, TvIcon, MusicalNoteIcon, BookOpenIcon, MagnifyingGlassIcon, 
   ServerIcon, PlayIcon, CubeIcon, ArrowTopRightOnSquareIcon, HomeIcon,
   ChartBarIcon, CloudIcon, ShieldCheckIcon, CodeBracketIcon, 
-  EyeIcon, WrenchScrewdriverIcon, CircleStackIcon, PlayCircleIcon,
-  DocumentDuplicateIcon
+  EyeIcon, WrenchScrewdriverIcon, CircleStackIcon, PlayCircleIcon
+  // DocumentDuplicateIcon // Removed with duplicate feature
 } from '@heroicons/react/24/outline';
 import apiClient from '../../api/client';
-import PlexDuplicatesModal from '../plex/PlexDuplicatesModal';
+// import PlexDuplicatesModal from '../plex/PlexDuplicatesModal'; // Disabled for safety
 
 const ServiceCard = ({ service, onDelete, onRefresh, onEdit, onClick }) => {
   const [stats, setStats] = useState(service.stats || null);
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [logoError, setLogoError] = useState(false);
-  const [showDuplicatesModal, setShowDuplicatesModal] = useState(false);
+  // const [showDuplicatesModal, setShowDuplicatesModal] = useState(false); // Disabled for safety
 
   // Updated icons for generic service types and specific services
   const ServiceIcons = {
@@ -453,28 +453,11 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit, onClick }) => {
                     </div>
                   )}
                   
-                  {/* Duplicates Management Button for Plex */}
+                  {/* Duplicates Management Button for Plex - DISABLED
                   <div className="mt-3 pt-3 border-t border-gray-800/50">
-                    <button 
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setShowDuplicatesModal(true);
-                      }}
-                      className="w-full bg-purple-900/20 hover:bg-purple-900/30 border border-purple-600/50 hover:border-purple-500 rounded-lg p-2 transition-all group text-left cursor-pointer"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <DocumentDuplicateIcon className="w-4 h-4 text-purple-400" />
-                          <span className="text-purple-300 text-sm font-medium">
-                            Manage Duplicates
-                          </span>
-                        </div>
-                        <ArrowTopRightOnSquareIcon className="w-3 h-3 text-purple-400 group-hover:text-purple-300" />
-                      </div>
-                      <p className="text-xs text-purple-400/70 mt-1 ml-6">Find and remove duplicate media</p>
-                    </button>
+                    // Feature temporarily disabled for safety
                   </div>
+                  */}
                 </>
               )}
               
@@ -678,14 +661,11 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit, onClick }) => {
         </div>
       </div>
       
-      {/* Plex Duplicates Modal */}
+      {/* Plex Duplicates Modal - DISABLED FOR SAFETY
       {service.type === 'plex' && (
-        <PlexDuplicatesModal 
-          isOpen={showDuplicatesModal}
-          onClose={() => setShowDuplicatesModal(false)}
-          service={service}
-        />
+        // Modal disabled - duplicate detection feature temporarily removed
       )}
+      */}
     </div>
   );
 };
