@@ -9,7 +9,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import StatsCard from '../shared/StatsCard';
 import ProgressBar from '../shared/ProgressBar';
 import SimpleLineChart from '../charts/SimpleLineChart';
-import PerformanceChart from '../charts/PerformanceChart';
 
 // Service relationship enrichment function
 const enrichStatsWithServiceRelationships = (stats, currentService, allServices) => {
@@ -804,56 +803,18 @@ const PerformanceTab = ({ stats, service }) => {
           </div>
         </div>
       )}
-        <StatsCard
-          title="Error Rate"
-          value="0.1"
-          unit="%"
-          icon={ExclamationTriangleIcon}
-          color="red"
-          trend={0}
-        />
-      </div>
 
-      {/* Enhanced Charts Grid with contextual information */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-gray-800/50 rounded-lg p-6">
-          <PerformanceChart
-            data={responseTimeData}
-            title="Response Time (24h)"
-            color="blue"
-            height={240}
-            description="How quickly the service responds to requests"
-          />
-        </div>
-        
-        <div className="bg-gray-800/50 rounded-lg p-6">
-          <PerformanceChart
-            data={apiCallsData}
-            title="API Calls (24h)"
-            color="purple"
-            height={240}
-            description="Volume of API requests received by the service"
-          />
-        </div>
-        
-        <div className="bg-gray-800/50 rounded-lg p-6">
-          <PerformanceChart
-            data={cpuData}
-            title="CPU Usage (24h)"
-            color="green"
-            height={240}
-            description="Processor utilization for service operations"
-          />
-        </div>
-        
-        <div className="bg-gray-800/50 rounded-lg p-6">
-          <PerformanceChart
-            data={memoryData}
-            title="Memory Usage (24h)"
-            color="yellow"
-            height={240}
-            description="RAM consumption for caching and operations"
-          />
+      {/* Performance Insights - Coming Soon */}
+      <div className="bg-gray-800/30 rounded-lg p-6">
+        <div className="text-center py-8">
+          <ChartBarIcon className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-400 mb-2">Performance Insights</h3>
+          <p className="text-gray-500 text-sm">
+            Advanced performance monitoring and analytics will be available in a future update.
+          </p>
+          <p className="text-gray-600 text-xs mt-2">
+            Features will include response time tracking, API call analytics, and resource usage monitoring.
+          </p>
         </div>
       </div>
     </div>
