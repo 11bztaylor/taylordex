@@ -25,6 +25,7 @@ const PlexDuplicatesModal = ({ isOpen, onClose, service }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [deleting, setDeleting] = useState(new Set());
   const [error, setError] = useState(null);
+  const [versionSelection, setVersionSelection] = useState(null); // For selecting which version to delete
 
   const libraryIcons = {
     movie: FilmIcon,
@@ -67,8 +68,48 @@ const PlexDuplicatesModal = ({ isOpen, onClose, service }) => {
     }
   };
 
-  const deleteDuplicate = async (ratingKey, itemTitle) => {
-    if (!window.confirm(`Delete "${itemTitle}"? This action cannot be undone.`)) {
+  const deleteDuplicate = async (ratingKey, itemTitle, mediaId = null) => {
+    if (!mediaId) {
+      // No media ID provided - need to select which version to delete
+      // This will trigger the backend to return available versions
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(`/api/plex/${service.id}/duplicates/${ratingKey}`, {
+          method: 'DELETE',
+          headers
+        });
+        const data = await response.json();
+        
+        if (data.requiresSelection) {
+          // Show version selection modal
+          setVersionSelection({
+            ratingKey,
+            itemTitle,
+            versions: data.versions,
+            recommendation: data.recommendation
+          });
+          return;
+        } else if (!data.success) {
+          alert(`${data.error}`);
+          return;
+        }
+      } catch (err) {
+        alert('Error checking versions for deletion');
+        console.error('Error:', err);
+        return;
+      }
+    }
+
+    // Confirm deletion with specific version info
+    const confirmMessage = mediaId 
+      ? `Delete specific version of "${itemTitle}"? This action cannot be undone.`
+      : `Delete "${itemTitle}"? This action cannot be undone.`;
+    
+    if (!window.confirm(confirmMessage)) {
       return;
     }
 
@@ -79,15 +120,20 @@ const PlexDuplicatesModal = ({ isOpen, onClose, service }) => {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`/api/plex/${service.id}/duplicates/${ratingKey}`, {
+      const url = `/api/plex/${service.id}/duplicates/${ratingKey}${mediaId ? `?mediaId=${mediaId}` : ''}`;
+      const response = await fetch(url, {
         method: 'DELETE',
         headers
       });
       const data = await response.json();
       
       if (data.success) {
+        console.log(`✅ Deleted: ${data.deletedFile || 'Unknown file'}`);
         // Refresh duplicates after successful deletion
         await fetchDuplicates();
+        setVersionSelection(null); // Close version selection
+      } else if (data.safetyBlock) {
+        alert(`Safety Block: ${data.error}`);
       } else {
         alert(`Failed to delete: ${data.error}`);
       }
@@ -434,6 +480,72 @@ const PlexDuplicatesModal = ({ isOpen, onClose, service }) => {
           </div>
         </div>
       </Dialog>
+
+      {/* Version Selection Modal */}
+      {versionSelection && (
+        <Dialog as="div" className="relative z-50" open={true} onClose={() => setVersionSelection(null)}>
+          <div className="fixed inset-0 bg-black/75" />
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-gray-900 border border-red-600 p-6 shadow-xl">
+                <div className="flex items-center mb-4">
+                  <ExclamationTriangleIcon className="w-6 h-6 text-red-400 mr-3" />
+                  <Dialog.Title as="h3" className="text-lg font-medium text-white">
+                    Select Version to Delete
+                  </Dialog.Title>
+                </div>
+                
+                <p className="text-gray-300 mb-4">
+                  "{versionSelection.itemTitle}" has multiple versions. Choose which one to delete:
+                </p>
+                
+                <div className="space-y-3 mb-6">
+                  {versionSelection.versions.map((version, index) => (
+                    <div key={version.id} className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="text-white font-medium">
+                            Version {index + 1}: {version.resolution}
+                          </div>
+                          <div className="text-sm text-gray-400 mt-1">
+                            Quality Score: {version.qualityScore} • 
+                            Size: {formatFileSize(version.size)} • 
+                            Bitrate: {version.bitrate ? `${Math.round(version.bitrate / 1000)} Mbps` : 'Unknown'}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1 font-mono truncate">
+                            {version.file}
+                          </div>
+                          {index === 0 && (
+                            <div className="inline-flex items-center px-2 py-1 bg-red-600/20 text-red-400 text-xs rounded mt-2">
+                              Recommended for deletion (lowest quality)
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => deleteDuplicate(versionSelection.ratingKey, versionSelection.itemTitle, version.id)}
+                          disabled={deleting.has(versionSelection.ratingKey)}
+                          className="ml-4 px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white rounded transition-colors text-sm"
+                        >
+                          Delete This Version
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={() => setVersionSelection(null)}
+                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </Dialog.Panel>
+            </div>
+          </div>
+        </Dialog>
+      )}
     </Transition>
   );
 };

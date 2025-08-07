@@ -616,18 +616,91 @@ class PlexService extends BaseService {
     }
   }
 
-  async deleteDuplicate(config, ratingKey) {
+  async deleteDuplicate(config, ratingKey, mediaId) {
     try {
-      console.log(`Deleting Plex item ${ratingKey} from ${config.host}:${config.port}`);
+      console.log(`🚨 DELETION REQUEST - Rating Key: ${ratingKey}, Media ID: ${mediaId}`);
       
-      await this.apiCall(config, `/library/metadata/${ratingKey}`, 'DELETE');
+      // CRITICAL: Never delete the entire metadata entry - this removes ALL versions!
+      // We need to delete specific media versions instead
       
-      return {
-        success: true,
-        message: 'Item deleted successfully'
-      };
+      // First, get the metadata to see all versions
+      const metadata = await this.apiCall(config, `/library/metadata/${ratingKey}`);
+      const item = metadata.MediaContainer?.Metadata?.[0];
+      
+      if (!item) {
+        throw new Error('Item not found');
+      }
+      
+      console.log(`📽️ "${item.title}" has ${item.Media?.length || 0} version(s)`);
+      
+      // Safety check: Don't delete if it's the only version
+      if (!item.Media || item.Media.length <= 1) {
+        console.error('⛔ SAFETY BLOCK: Cannot delete the only version of this media!');
+        return {
+          success: false,
+          error: 'Cannot delete the only version of this media. This would remove the entire movie/show from your library.',
+          safetyBlock: true
+        };
+      }
+      
+      if (mediaId) {
+        // Delete specific media version by ID
+        console.log(`🗑️ Deleting specific media version ID: ${mediaId}`);
+        
+        // Find the specific media version
+        const mediaToDelete = item.Media.find(m => m.id === parseInt(mediaId));
+        if (!mediaToDelete) {
+          throw new Error(`Media version ${mediaId} not found`);
+        }
+        
+        // Log what we're about to delete for safety
+        console.log(`   - Deleting: ${mediaToDelete.videoResolution || 'Unknown'} - ${mediaToDelete.width}x${mediaToDelete.height} - ${(mediaToDelete.bitrate / 1000).toFixed(0)} Mbps`);
+        console.log(`   - File: ${mediaToDelete.Part?.[0]?.file || 'Unknown file'}`);
+        
+        // Delete the specific media version
+        await this.apiCall(config, `/library/metadata/${ratingKey}/media/${mediaId}`, 'DELETE');
+        
+        console.log(`✅ Successfully deleted media version ${mediaId}`);
+        
+        return {
+          success: true,
+          message: `Deleted ${mediaToDelete.videoResolution || 'Unknown quality'} version`,
+          deletedFile: mediaToDelete.Part?.[0]?.file
+        };
+        
+      } else {
+        // No specific media ID provided - need to choose which to delete
+        console.error('⚠️ No media ID specified - listing available versions:');
+        
+        const versions = [];
+        for (const media of item.Media) {
+          const quality = this.calculateQualityScore(media);
+          versions.push({
+            id: media.id,
+            resolution: media.videoResolution || 'Unknown',
+            size: media.Part?.[0]?.size || 0,
+            bitrate: media.bitrate,
+            file: media.Part?.[0]?.file,
+            qualityScore: quality
+          });
+          
+          console.log(`   Version ${media.id}: ${media.videoResolution} - Score: ${quality}`);
+        }
+        
+        // Sort by quality (lowest first for potential deletion)
+        versions.sort((a, b) => a.qualityScore - b.qualityScore);
+        
+        return {
+          success: false,
+          error: 'Must specify which version to delete',
+          requiresSelection: true,
+          versions: versions,
+          recommendation: `Consider deleting version ${versions[0].id} (${versions[0].resolution} - lowest quality)`
+        };
+      }
+      
     } catch (error) {
-      console.error('Error deleting Plex item:', error.message);
+      console.error('❌ Error deleting Plex item:', error.message);
       return {
         success: false,
         error: error.message

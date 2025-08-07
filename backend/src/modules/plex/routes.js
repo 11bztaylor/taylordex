@@ -184,10 +184,11 @@ router.post('/:id/duplicates/scan', requireRole('admin'), async (req, res) => {
   }
 });
 
-// Delete a specific duplicate item
+// Delete a specific duplicate version (NOT the entire movie!)
 router.delete('/:id/duplicates/:ratingKey', requireRole('admin'), async (req, res) => {
   try {
     const { id, ratingKey } = req.params;
+    const { mediaId } = req.query; // Media ID is now required to prevent deleting all versions
     
     // Get service config using ServiceRepository
     const config = await ServiceRepository.getServiceWithCredentials(id, 'plex');
@@ -198,7 +199,8 @@ router.delete('/:id/duplicates/:ratingKey', requireRole('admin'), async (req, re
         error: 'Plex service not found'
       });
     }
-    const deleteResult = await plexService.deleteDuplicate(config, ratingKey);
+    
+    const deleteResult = await plexService.deleteDuplicate(config, ratingKey, mediaId);
 
     res.json(deleteResult);
   } catch (error) {
