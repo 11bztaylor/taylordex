@@ -22,6 +22,18 @@ services:
     environment:
       - DATABASE_URL=postgresql://taylordex:taylordex_secure_pass@postgres:5432/taylordex
       - REDIS_URL=redis://redis:6379
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=taylordex
+      - POSTGRES_USER=taylordex
+      - POSTGRES_PASSWORD=taylordex_secure_pass
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=taylordex
+      - DB_USER=taylordex
+      - DB_PASSWORD=taylordex_secure_pass
+      - JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+      - SESSION_SECRET=your-super-secret-session-key-change-this-in-production
     depends_on:
       - postgres
       - redis

@@ -67,14 +67,18 @@ class StatsCollector {
         endpoint: `${service.host}:${service.port}`
       });
       
-      // Call the actual service getStats() method instead of generating mock data
+      // Call the actual service getStats() method - NO MOCK DATA
       let serviceModule;
       try {
         serviceModule = require(`../modules/${service.type}/service`);
       } catch (error) {
-        logger.warn(`No service module found for ${service.type}, using basic stats`);
-        const stats = await this.generateBasicStats(service);
-        return stats;
+        logger.error(`❌ No service module found for ${service.type} - stats collection skipped`, {
+          serviceId: service.id,
+          serviceName: service.name,
+          serviceType: service.type,
+          error: error.message
+        });
+        return; // Skip this service - no mock data
       }
       
       const config = {
@@ -116,107 +120,6 @@ class StatsCollector {
     }
   }
 
-  async generateBasicStats(service) {
-    // Generate basic stats based on service type
-    const baseStats = {
-      status: 'online',
-      lastChecked: new Date().toISOString(),
-      responseTime: Math.floor(Math.random() * 100) + 50 // Simulated response time
-    };
-
-    switch (service.type) {
-      case 'plex':
-        return {
-          ...baseStats,
-          totalMovies: Math.floor(Math.random() * 1000) + 100,
-          totalTVShows: Math.floor(Math.random() * 500) + 50,
-          currentStreams: Math.floor(Math.random() * 5),
-          totalUsers: Math.floor(Math.random() * 20) + 1
-        };
-
-      case 'radarr':
-        return {
-          ...baseStats,
-          movies: Math.floor(Math.random() * 800) + 200,
-          missing: Math.floor(Math.random() * 50),
-          queued: Math.floor(Math.random() * 10),
-          diskSpace: '85%',
-          diskSpaceUsedPercent: 85
-        };
-
-      case 'sonarr':
-        return {
-          ...baseStats,
-          series: Math.floor(Math.random() * 300) + 50,
-          episodes: Math.floor(Math.random() * 5000) + 1000,
-          missing: Math.floor(Math.random() * 100),
-          queued: Math.floor(Math.random() * 15),
-          diskSpace: '78%',
-          diskSpaceUsedPercent: 78
-        };
-
-      case 'lidarr':
-        return {
-          ...baseStats,
-          artists: Math.floor(Math.random() * 200) + 30,
-          albums: Math.floor(Math.random() * 1500) + 300,
-          tracks: Math.floor(Math.random() * 15000) + 3000,
-          missing: Math.floor(Math.random() * 80),
-          diskSpace: '65%',
-          diskSpaceUsedPercent: 65
-        };
-
-      case 'prowlarr':
-        return {
-          ...baseStats,
-          indexers: Math.floor(Math.random() * 50) + 10,
-          activeIndexers: Math.floor(Math.random() * 30) + 8,
-          totalQueries: Math.floor(Math.random() * 10000) + 1000,
-          dailyQueries: Math.floor(Math.random() * 500) + 100
-        };
-
-      case 'overseerr':
-        return {
-          ...baseStats,
-          pendingRequests: Math.floor(Math.random() * 20),
-          totalRequests: Math.floor(Math.random() * 500) + 100,
-          approvedRequests: Math.floor(Math.random() * 400) + 80,
-          totalUsers: Math.floor(Math.random() * 15) + 5
-        };
-
-      case 'tautulli':
-        return {
-          ...baseStats,
-          totalStreams: Math.floor(Math.random() * 5000) + 500,
-          dailyStreams: Math.floor(Math.random() * 50) + 10,
-          topUser: 'User' + Math.floor(Math.random() * 10),
-          bandwidth: Math.floor(Math.random() * 100) + 'Mbps'
-        };
-
-      case 'unraid':
-        return {
-          ...baseStats,
-          uptime: Math.floor(Math.random() * 30) + ' days',
-          arrayStatus: 'Started',
-          diskUtilization: Math.floor(Math.random() * 40) + 60 + '%',
-          temperature: Math.floor(Math.random() * 15) + 35 + '°C',
-          runningContainers: Math.floor(Math.random() * 20) + 5
-        };
-
-      case 'portainer':
-        return {
-          ...baseStats,
-          containers: Math.floor(Math.random() * 25) + 10,
-          runningContainers: Math.floor(Math.random() * 20) + 8,
-          images: Math.floor(Math.random() * 50) + 20,
-          volumes: Math.floor(Math.random() * 30) + 10,
-          networks: Math.floor(Math.random() * 10) + 3
-        };
-
-      default:
-        return baseStats;
-    }
-  }
 }
 
 module.exports = new StatsCollector();

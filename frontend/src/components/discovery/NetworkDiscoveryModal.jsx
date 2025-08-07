@@ -302,152 +302,11 @@ const NetworkDiscoveryModal = ({ isOpen, onClose, onServicesFound }) => {
   };
   
   const startDemoScan = async (range) => {
-    console.log(`Starting demo scan for range: ${range}`);
-    
-    // Simulate scan setup
-    const demoScan = {
-      scanId: 'demo-' + Date.now(),
-      totalHosts: range === 'auto' ? 254 : 50,
-      range
-    };
-    
-    setCurrentScan(demoScan);
-    setScanProgress({ current: 0, total: demoScan.totalHosts, percentage: 0 });
-    
-    // Simulate scanning progress
-    const progressInterval = setInterval(() => {
-      setScanProgress(prev => {
-        const newCurrent = Math.min(prev.current + Math.floor(Math.random() * 5) + 1, prev.total);
-        const newPercentage = Math.round((newCurrent / prev.total) * 100);
-        
-        if (newCurrent >= prev.total) {
-          clearInterval(progressInterval);
-          // Simulate scan completion
-          setTimeout(() => {
-            const mockServices = generateMockServices(range);
-            
-            const servicesWithNetwork = mockServices.map(service => ({
-              ...service,
-              discoveredNetwork: range,
-              discoveredAt: new Date().toISOString()
-            }));
-            
-            setAllDiscoveredServices(prev => {
-              const updated = [...prev, ...servicesWithNetwork];
-              // Check if more networks to scan
-              if (currentNetworkIndex < networkQueue.length - 1) {
-                // More networks to scan, don't update discoveredServices yet
-              } else {
-                // All networks scanned, update discoveredServices
-                setDiscoveredServices(updated);
-              }
-              return updated;
-            });
-            
-            setScanHistory(prev => [...prev, {
-              network: range,
-              timestamp: new Date().toISOString(),
-              servicesFound: mockServices.length,
-              scanId: demoScan.scanId
-            }]);
-            
-            // Check if more networks to scan
-            if (currentNetworkIndex < networkQueue.length - 1) {
-              setCurrentNetworkIndex(prev => prev + 1);
-              // Start next network scan
-              startNextNetworkScan();
-            } else {
-              // All networks scanned
-              setStep('results');
-            }
-          }, 1000);
-        }
-        
-        return { current: newCurrent, total: prev.total, percentage: newPercentage };
-      });
-    }, 200);
+    console.log(`Backend not available for network discovery. Range: ${range}`);
+    setError('Network discovery requires backend connection. Please ensure the backend server is running.');
+    setStep('configure');
   };
   
-  const generateMockServices = (range) => {
-    const mockServices = [
-      {
-        id: `${range}:192.168.1.10:7878`,
-        ip: '192.168.1.10',
-        hostname: 'media-server.local',
-        port: 7878,
-        service: 'radarr',
-        serviceName: 'Radarr',
-        confidence: 95,
-        version: '5.14.0.9383',
-        ssl: false,
-        responseTime: 45,
-        details: 'Detected via GET /api/v3/system/status',
-        detectionMethod: 'GET /api/v3/system/status'
-      },
-      {
-        id: `${range}:192.168.1.10:8989`,
-        ip: '192.168.1.10',
-        hostname: 'media-server.local',
-        port: 8989,
-        service: 'sonarr',
-        serviceName: 'Sonarr',
-        confidence: 92,
-        version: '4.0.11.2680',
-        ssl: false,
-        responseTime: 38,
-        details: 'Detected via GET /api/v3/system/status',
-        detectionMethod: 'GET /api/v3/system/status'
-      },
-      {
-        id: `${range}:192.168.1.15:32400`,
-        ip: '192.168.1.15',
-        hostname: 'plex-server.local',
-        port: 32400,
-        service: 'plex',
-        serviceName: 'Plex Media Server',
-        confidence: 98,
-        version: '1.41.2.8994',
-        ssl: false,
-        responseTime: 67,
-        details: 'Detected via GET /identity',
-        detectionMethod: 'GET /identity'
-      },
-      {
-        id: `${range}:192.168.1.5:443`,
-        ip: '192.168.1.5',
-        hostname: 'tower.local',
-        port: 443,
-        service: 'unraid',
-        serviceName: 'Unraid Server',
-        confidence: 85,
-        version: '7.2.0',
-        ssl: true,
-        responseTime: 120,
-        details: 'Detected via GET /',
-        detectionMethod: 'GET /'
-      }
-    ];
-    
-    // Add some random variation for different networks
-    if (range.includes('10.0.0')) {
-      mockServices.push({
-        id: `${range}:10.0.0.100:9696`,
-        ip: '10.0.0.100',
-        hostname: null,
-        port: 9696,
-        service: 'prowlarr',
-        serviceName: 'Prowlarr',
-        confidence: 88,
-        version: '1.28.0.4885',
-        ssl: false,
-        responseTime: 52,
-        details: 'Detected via GET /api/v1/system/status',
-        detectionMethod: 'GET /api/v1/system/status'
-      });
-    }
-    
-    return mockServices;
-  };
   
   const startNextNetworkScan = async () => {
     const nextNetwork = networkQueue[currentNetworkIndex];
@@ -528,19 +387,36 @@ const NetworkDiscoveryModal = ({ isOpen, onClose, onServicesFound }) => {
     setServiceTestResults(prev => ({ ...prev, [serviceId]: null }));
     
     try {
-      // Simulate API test call - in real implementation this would test the actual service
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Test connection with real backend API
+      const testData = {
+        host: config.host,
+        port: config.port,
+        apiKey: config.apiKey,
+        username: config.username,
+        password: config.password,
+        ssl: config.ssl
+      };
       
-      // Mock test result - in real implementation, test connection with provided credentials
-      const success = config.apiKey || config.username || config.password; // Has some auth
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`http://localhost:5000/api/${config.type}/test`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(testData)
+      });
+      
+      const result = await response.json();
       
       setServiceTestResults(prev => ({
         ...prev,
         [serviceId]: {
-          success,
-          message: success 
+          success: result.success,
+          message: result.success 
             ? 'Connection successful! Service is responding.' 
-            : 'Test failed. Please check your authentication details.',
+            : result.error || 'Test failed. Please check your authentication details.',
           timestamp: new Date().toISOString()
         }
       }));
@@ -550,7 +426,7 @@ const NetworkDiscoveryModal = ({ isOpen, onClose, onServicesFound }) => {
         ...prev,
         [serviceId]: {
           success: false,
-          message: 'Connection failed. Please check your settings.',
+          message: 'Connection failed. Please check your settings and ensure the backend is running.',
           error: error.message,
           timestamp: new Date().toISOString()
         }
@@ -740,13 +616,34 @@ const NetworkDiscoveryModal = ({ isOpen, onClose, onServicesFound }) => {
   
   const handleQuickAdd = async (serviceData) => {
     try {
-      // In a real implementation, this would call the add service API
       console.log('Quick adding service:', serviceData);
-      onServicesFound([serviceData]);
+      
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch('http://localhost:5000/api/services', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(serviceData)
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Quick add successful:', result.service);
+        onServicesFound([result.service]);
+      } else {
+        console.error('❌ Quick add failed:', result.error);
+        setError(result.error || 'Failed to add service');
+      }
+      
       setShowQuickAdd(false);
       setQuickAddService(null);
     } catch (error) {
       console.error('Failed to quick add service:', error);
+      setError('Failed to connect to backend for service addition');
     }
   };
   

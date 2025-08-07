@@ -749,70 +749,61 @@ const GenericStats = ({ stats }) => (
 
 // Performance Tab Component
 const PerformanceTab = ({ stats, service }) => {
-  // Generate mock performance data
-  const generateMockData = (baseValue, variance, count = 24) => {
-    return Array.from({ length: count }, (_, i) => ({
-      value: baseValue + (Math.random() - 0.5) * variance,
-      unit: 'ms',
-      timestamp: new Date(Date.now() - (count - i) * 3600000).toISOString()
-    }));
-  };
-
-  const responseTimeData = generateMockData(75, 50);
-  const apiCallsData = generateMockData(500, 200).map(d => ({ ...d, unit: 'calls' }));
-  const cpuData = generateMockData(25, 20).map(d => ({ ...d, unit: '%' }));
-  const memoryData = generateMockData(60, 15).map(d => ({ ...d, unit: '%' }));
+  // Real performance metrics would come from service stats or monitoring system
+  // For now, show basic available metrics or indicate feature is not available
 
   return (
     <div className="space-y-6">
-      {/* Performance Summary - Moved to top */}
-      <div className="bg-gray-800/50 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-white mb-4">Performance Summary</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div>
-            <p className="text-gray-400 text-sm mb-2">Average Load Time</p>
-            <ProgressBar value={85} label="Page Load Speed" color="green" />
-            <p className="text-xs text-gray-500 mt-1">Fast response times improve user experience</p>
-          </div>
-          <div>
-            <p className="text-gray-400 text-sm mb-2">Cache Hit Rate</p>
-            <ProgressBar value={92} label="Cache Efficiency" color="blue" />
-            <p className="text-xs text-gray-500 mt-1">Higher rates reduce server load and improve speed</p>
-          </div>
-          <div>
-            <p className="text-gray-400 text-sm mb-2">Resource Usage</p>
-            <ProgressBar value={45} label="System Resources" color="auto" />
-            <p className="text-xs text-gray-500 mt-1">Monitor to prevent performance bottlenecks</p>
+      {/* Performance Monitoring - Coming Soon */}
+      <div className="bg-gray-800/50 rounded-lg p-8 text-center">
+        <div className="max-w-md mx-auto">
+          <ChartBarIcon className="w-16 h-16 text-gray-500 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">Performance Monitoring</h3>
+          <p className="text-gray-400 mb-6">
+            Real-time performance metrics and historical data will be available here.
+          </p>
+          <div className="bg-blue-900/20 border border-blue-600/30 rounded-lg p-4">
+            <h4 className="text-blue-300 font-medium mb-2">Coming Soon</h4>
+            <ul className="text-sm text-blue-200/80 text-left space-y-1">
+              <li>• Response time monitoring</li>
+              <li>• Resource usage tracking</li>
+              <li>• API call analytics</li>
+              <li>• Performance alerts</li>
+              <li>• Historical trends</li>
+            </ul>
           </div>
         </div>
       </div>
 
-      {/* Performance Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatsCard
-          title="Avg Response Time"
-          value={responseTimeData[responseTimeData.length - 1].value.toFixed(0)}
-          unit="ms"
-          icon={ClockIcon}
-          color="blue"
-          trend={-5}
-          trendValue="5% faster"
-        />
-        <StatsCard
-          title="Uptime"
-          value="99.9"
-          unit="%"
-          icon={ServerIcon}
-          color="green"
-        />
-        <StatsCard
-          title="API Calls"
-          value={apiCallsData[apiCallsData.length - 1].value.toFixed(0)}
-          unit="/hour"
-          icon={ChartBarIcon}
-          color="purple"
-          trend={12}
-        />
+      {/* Available Real Stats */}
+      {stats?.version && (
+        <div className="bg-gray-800/50 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-white mb-4">Current Service Info</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <StatsCard
+              title="Version"
+              value={stats.version}
+              icon={ServerIcon}
+              color="blue"
+            />
+            <StatsCard
+              title="Status"
+              value={stats.status || 'Online'}
+              icon={CheckCircleIcon}
+              color="green"
+            />
+            {stats.responseTime && (
+              <StatsCard
+                title="Last Response"
+                value={stats.responseTime}
+                unit="ms"
+                icon={ClockIcon}
+                color="purple"
+              />
+            )}
+          </div>
+        </div>
+      )}
         <StatsCard
           title="Error Rate"
           value="0.1"
