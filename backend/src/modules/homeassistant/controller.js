@@ -38,6 +38,12 @@ class HomeAssistantController {
       const config = result.rows[0];
       const stats = await homeAssistantService.getStats(config);
       
+      // Cache stats in database
+      await query(
+        'INSERT INTO service_stats (service_id, stats) VALUES ($1, $2)',
+        [id, JSON.stringify(stats)]
+      );
+      
       res.json({
         success: true,
         stats: stats
@@ -71,6 +77,12 @@ class HomeAssistantController {
 
       const config = result.rows[0];
       const stats = await homeAssistantService.getEnhancedStats(config);
+      
+      // Cache stats in database
+      await query(
+        'INSERT INTO service_stats (service_id, stats) VALUES ($1, $2)',
+        [id, JSON.stringify(stats)]
+      );
       
       res.json({
         success: true,

@@ -22,11 +22,51 @@ class RadarrService extends BaseService {
       
       // Basic stats
       const totalMovies = movies.length;
+      const moviesWithFiles = movies.filter(m => m.hasFile).length;
       const missingMovies = movies.filter(m => !m.hasFile).length;
       const monitoredMovies = movies.filter(m => m.monitored).length;
       
-      const totalSpace = diskSpace.reduce((acc, disk) => acc + disk.totalSpace, 0);
-      const freeSpace = diskSpace.reduce((acc, disk) => acc + disk.freeSpace, 0);
+      // Enhanced storage processing with duplicate detection and path visibility
+      const processedDisks = diskSpace.map(disk => {
+        const duplicateOf = diskSpace.find(d => 
+          d !== disk && d.totalSpace === disk.totalSpace && d.freeSpace === disk.freeSpace
+        );
+        return {
+          ...disk,
+          isDuplicate: !!duplicateOf,
+          duplicateOfPath: duplicateOf?.path
+        };
+      });
+      
+      // Get unique disks for metrics calculation (avoid double counting)
+      const uniqueDisks = processedDisks.filter(disk => !disk.isDuplicate);
+      
+      const primaryDisk = uniqueDisks.reduce((largest, current) => 
+        current.totalSpace > largest.totalSpace ? current : largest
+      , uniqueDisks[0] || { totalSpace: 0, freeSpace: 0 });
+      
+      // Storage paths with duplicate indicators and Docker/NAS integration
+      const enhancedStoragePaths = processedDisks.map(disk => {
+        const isDockerPath = disk.path.startsWith('/') && !disk.path.startsWith('/mnt') && !disk.path.startsWith('/media');
+        return {
+          path: disk.path,
+          label: disk.label || disk.path.split('/').pop() || 'Root',
+          totalSpace: disk.totalSpace,
+          freeSpace: disk.freeSpace,
+          usedSpace: disk.totalSpace - disk.freeSpace,
+          usedPercent: Math.round(((disk.totalSpace - disk.freeSpace) / disk.totalSpace) * 100),
+          accessible: disk.totalSpace > 0,
+          isDuplicate: disk.isDuplicate,
+          duplicateOfPath: disk.duplicateOfPath,
+          isDockerMount: isDockerPath,
+          // Docker/NAS host detection (will be enhanced with service integration)
+          dockerHost: config.host !== 'localhost' && config.host !== '127.0.0.1' ? config.host : null,
+          isPrimary: disk === primaryDisk
+        };
+      });
+      
+      const totalSpace = primaryDisk.totalSpace;
+      const freeSpace = primaryDisk.freeSpace;
       const usedSpace = totalSpace - freeSpace;
 
       // Get queue info - FIXED parsing
@@ -158,6 +198,7 @@ class RadarrService extends BaseService {
       return {
         // Basic stats
         movies: totalMovies,
+        files: moviesWithFiles,
         missing: missingMovies,
         monitored: monitoredMovies,
         diskSpace: this.formatBytes(usedSpace),
@@ -166,6 +207,10 @@ class RadarrService extends BaseService {
         diskSpaceUsedPercent: Math.round((usedSpace / totalSpace) * 100),
         version: systemStatus.version,
         status: 'online',
+        
+        // Enhanced storage information with Docker/NAS integration
+        storagePaths: enhancedStoragePaths,
+        dockerHost: config.host !== 'localhost' && config.host !== '127.0.0.1' ? config.host : null,
         
         // Enhanced stats
         queue: queueData,

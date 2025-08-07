@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const logController = require('./controller');
+const { authenticateToken, requireRole } = require('../../auth/middleware');
+
+// Apply authentication to all routes
+router.use(authenticateToken);
 
 /**
  * Log Collection Routes
@@ -8,10 +12,10 @@ const logController = require('./controller');
  */
 
 // Start collecting logs from a specific service
-router.post('/start/:serviceId', logController.startCollection);
+router.post('/start/:serviceId', requireRole('admin'), logController.startCollection);
 
 // Stop collecting logs from a specific service  
-router.delete('/stop/:serviceId', logController.stopCollection);
+router.delete('/stop/:serviceId', requireRole('admin'), logController.stopCollection);
 
 // Get logs from a specific service with optional filtering
 router.get('/service/:serviceId', logController.getServiceLogs);
@@ -29,6 +33,6 @@ router.get('/status', logController.getStatus);
 router.get('/stream', logController.getLogStream);
 
 // Test log collection for a service
-router.post('/test', logController.testCollection);
+router.post('/test', requireRole('user'), logController.testCollection);
 
 module.exports = router;

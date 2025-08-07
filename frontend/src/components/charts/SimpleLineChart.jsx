@@ -26,11 +26,11 @@ const SimpleLineChart = ({ data, title, color = 'green', height = 200 }) => {
   }).join(' ');
 
   const colorClasses = {
-    green: 'text-green-400 stroke-green-400 fill-green-400',
-    blue: 'text-blue-400 stroke-blue-400 fill-blue-400',
-    yellow: 'text-yellow-400 stroke-yellow-400 fill-yellow-400',
-    red: 'text-red-400 stroke-red-400 fill-red-400',
-    purple: 'text-purple-400 stroke-purple-400 fill-purple-400'
+    green: 'text-green-400 stroke-green-400',
+    blue: 'text-blue-400 stroke-blue-400',
+    yellow: 'text-yellow-400 stroke-yellow-400',
+    red: 'text-red-400 stroke-red-400',
+    purple: 'text-purple-400 stroke-purple-400'
   };
 
   const selectedColor = colorClasses[color] || colorClasses.green;
@@ -55,7 +55,7 @@ const SimpleLineChart = ({ data, title, color = 'green', height = 200 }) => {
                 x2={width}
                 y2={y}
                 className="stroke-gray-700"
-                strokeWidth="0.5"
+                strokeWidth="0.3"
                 strokeDasharray="2 2"
               />
             );
@@ -66,15 +66,12 @@ const SimpleLineChart = ({ data, title, color = 'green', height = 200 }) => {
             points={points}
             fill="none"
             className={selectedColor}
-            strokeWidth="2"
+            strokeWidth="0.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
           
-          {/* Area under line */}
-          <polygon
-            points={`0,${chartHeight} ${points} ${width},${chartHeight}`}
-            className={selectedColor}
-            fillOpacity="0.1"
-          />
+          {/* Removed area fill for cleaner line chart appearance */}
           
           {/* Data points */}
           {data.map((d, i) => {
@@ -85,8 +82,9 @@ const SimpleLineChart = ({ data, title, color = 'green', height = 200 }) => {
                 key={i}
                 cx={x}
                 cy={y}
-                r="2"
+                r="1"
                 className={selectedColor}
+                fill="currentColor"
               />
             );
           })}

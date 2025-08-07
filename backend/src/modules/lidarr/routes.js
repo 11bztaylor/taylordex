@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const lidarrService = require('./service');
 const { query } = require('../../database/connection');
+const { authenticateToken, requireRole } = require('../../auth/middleware');
+
+// Apply authentication to all routes
+router.use(authenticateToken);
 
 router.get('/:id/stats', async (req, res) => {
   try {

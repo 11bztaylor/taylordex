@@ -1,21 +1,28 @@
 import React, { useState, useEffect } from 'react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/layout/Header';
 import TabNavigation from './components/layout/TabNavigation';
 import ServicesTab from './components/services/ServicesTab';
 import StatusTab from './components/status/StatusTab';
 import LogsTab from './components/logs/LogsTab';
+import LoginForm from './components/auth/LoginForm';
+import SetupForm from './components/auth/SetupForm';
+import AdminDashboard from './components/admin/AdminDashboard';
 import ErrorBoundary from './components/shared/ErrorBoundary';
+import ErrorTestComponent from './components/test/ErrorTestComponent';
+import apiClient from './api/client';
 
-function App() {
+const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('services');
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { user, token } = useAuth();
 
-  const currentUser = {
+  const currentUser = user || {
     id: 1,
-    name: "Zach Taylor",
-    email: "zach@taylorhomelink.com",
-    role: "admin"
+    name: user?.username || "Admin User",
+    email: user?.email || "admin@localhost",
+    role: user?.role || "admin"
   };
 
   useEffect(() => {
@@ -27,11 +34,36 @@ function App() {
 
   const fetchServices = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/services');
-      const data = await response.json();
+      console.log('🔄 App - Starting services fetch', {
+        hasToken: !!token,
+        tokenSource: token ? 'AuthContext' : 'None',
+        localStorageToken: !!localStorage.getItem('auth_token'),
+        user: user?.username,
+        timestamp: new Date().toISOString()
+      });
+      
+      console.log('📡 App - Fetching services via API client');
+      
+      const data = await apiClient.getServices();
+      
+      // Fix: Services are in data.data.services, not data.services
+      const services = data.data?.services || [];
+      
+      console.log('📡 App - Services response data:', {
+        success: data.success,
+        serviceCount: services.length,
+        error: data.error,
+        serviceNames: services.map(s => s.name) || [],
+        timestamp: new Date().toISOString()
+      });
+      
+      // Debug: Log full response if it looks suspicious
+      if (data.success && services.length < 5) {
+        console.warn('⚠️ App - Suspiciously low service count. Full response:', data);
+      }
       
       if (data.success) {
-        const transformedServices = data.services.map(service => ({
+        const transformedServices = services.map(service => ({
           id: service.id,
           name: service.name,
           type: service.type,
@@ -44,16 +76,33 @@ function App() {
             : 'Never',
           stats: service.stats || {}
         }));
-        console.log('Fetched services:', transformedServices); // Debug log
+        
+        console.log('✅ App - Services transformed successfully:', {
+          originalCount: services.length,
+          transformedCount: transformedServices.length,
+          services: transformedServices.map(s => ({
+            id: s.id,
+            name: s.name, 
+            type: s.type,
+            hasStats: Object.keys(s.stats).length > 0,
+            statsKeys: Object.keys(s.stats)
+          }))
+        });
+        
         setServices(transformedServices);
       } else {
+        console.warn('⚠️ App - Services fetch unsuccessful:', data.error);
         setServices([]);
       }
     } catch (error) {
-      console.error('Failed to fetch services:', error);
+      console.error('❌ App - Failed to fetch services:', {
+        error: error.message,
+        stack: error.stack
+      });
       setServices([]);
     } finally {
       setLoading(false);
+      console.log('🏁 App - Services fetch completed');
     }
   };
 
@@ -70,19 +119,23 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
-      <Header 
-        currentUser={currentUser} 
-        onlineServices={onlineServices} 
-        totalServices={totalServices} 
-      />
+      <ErrorBoundary fallbackMessage="There was an error loading the header">
+        <Header 
+          currentUser={currentUser} 
+          onlineServices={onlineServices} 
+          totalServices={totalServices} 
+        />
+      </ErrorBoundary>
       
-      <TabNavigation 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-      />
+      <ErrorBoundary fallbackMessage="There was an error loading the navigation">
+        <TabNavigation 
+          activeTab={activeTab} 
+          setActiveTab={setActiveTab} 
+        />
+      </ErrorBoundary>
 
       <main className="container mx-auto px-4 py-8">
-        <ErrorBoundary>
+        <ErrorBoundary fallbackMessage="There was an error loading the main content">
           {activeTab === 'services' && (
             <ServicesTab 
               services={services} 
@@ -103,10 +156,7 @@ function App() {
           )}
           
           {activeTab === 'users' && (
-            <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-gray-800">
-              <h2 className="text-xl font-semibold mb-4 text-green-400">User Management</h2>
-              <p className="text-gray-400">User management coming soon...</p>
-            </div>
+            <AdminDashboard />
           )}
           
           {activeTab === 'settings' && (
@@ -134,12 +184,51 @@ function App() {
                     ))}
                   </div>
                 </div>
+                <div>
+                  <h3 className="text-lg font-medium text-gray-300 mb-2">Testing</h3>
+                  <ErrorBoundary fallbackMessage="Error test component failed">
+                    <ErrorTestComponent />
+                  </ErrorBoundary>
+                </div>
               </div>
             </div>
           )}
         </ErrorBoundary>
       </main>
     </div>
+  );
+};
+
+const AuthenticatedApp = () => {
+  const { loading, setupRequired, isAuthenticated } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-2 text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (setupRequired) {
+    return <SetupForm />;
+  }
+
+  if (!isAuthenticated) {
+    return <LoginForm />;
+  }
+
+  return <Dashboard />;
+};
+
+function App() {
+  return (
+    <AuthProvider>
+      <AuthenticatedApp />
+    </AuthProvider>
   );
 }
 

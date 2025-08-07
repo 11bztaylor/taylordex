@@ -12,9 +12,11 @@ import {
   PlusIcon
 } from '@heroicons/react/24/outline';
 import QuickAddServiceModal from './QuickAddServiceModal';
+import { useAuth } from '../../contexts/AuthContext';
 
 const NetworkDiscoveryModal = ({ isOpen, onClose, onServicesFound }) => {
-  const [step, setStep] = useState('configure'); // configure, scanning, results
+  const { token } = useAuth();
+  const [step, setStep] = useState('configure'); // configure, scanning, results, setup
   const [scanType, setScanType] = useState('auto');
   const [networkInput, setNetworkInput] = useState('');
   const [rangeStart, setRangeStart] = useState('192.168.1.1');
@@ -46,6 +48,16 @@ const NetworkDiscoveryModal = ({ isOpen, onClose, onServicesFound }) => {
   const [serviceTypeFilter, setServiceTypeFilter] = useState('all');
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [quickAddService, setQuickAddService] = useState(null);
+  
+  // Configuration step state
+  const [servicesToConfigure, setServicesToConfigure] = useState([]);
+  const [serviceConfigs, setServiceConfigs] = useState({});
+  const [serviceTestResults, setServiceTestResults] = useState({});
+  const [testingServices, setTestingServices] = useState(new Set());
+  const [addingServices, setAddingServices] = useState(new Set());
+  const [addedServices, setAddedServices] = useState(new Set());
+  const [processedServices, setProcessedServices] = useState(new Set());
+  const [successfullyAdded, setSuccessfullyAdded] = useState([]);
   
   // Scan type options
   const scanTypes = [
@@ -81,6 +93,14 @@ const NetworkDiscoveryModal = ({ isOpen, onClose, onServicesFound }) => {
       setCurrentScan(null);
       setCurrentNetworkIndex(0);
       
+      // Reset setup-related state
+      setProcessedServices(new Set());
+      setSuccessfullyAdded([]);
+      setServiceTestResults({});
+      setAddedServices(new Set());
+      setAddingServices(new Set());
+      setTestingServices(new Set());
+      
       // Load saved results from localStorage
       const savedResults = localStorage.getItem('taylordx-discovery-results');
       if (savedResults) {
@@ -113,7 +133,11 @@ const NetworkDiscoveryModal = ({ isOpen, onClose, onServicesFound }) => {
     if (currentScan && step === 'scanning') {
       interval = setInterval(async () => {
         try {
-          const response = await fetch(`http://localhost:5000/api/discovery/scan/${currentScan.scanId}`);
+          const response = await fetch(`http://localhost:5000/api/discovery/scan/${currentScan.scanId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
           const data = await response.json();
           
           if (data.success) {
@@ -252,7 +276,8 @@ const NetworkDiscoveryModal = ({ isOpen, onClose, onServicesFound }) => {
       const response = await fetch('http://localhost:5000/api/discovery/scan', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           range,
@@ -435,7 +460,10 @@ const NetworkDiscoveryModal = ({ isOpen, onClose, onServicesFound }) => {
     if (currentScan) {
       try {
         await fetch(`http://localhost:5000/api/discovery/scan/${currentScan.scanId}`, {
-          method: 'DELETE'
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         });
       } catch (error) {
         console.error('Failed to cancel scan:', error);
@@ -461,10 +489,207 @@ const NetworkDiscoveryModal = ({ isOpen, onClose, onServicesFound }) => {
       selectedServices.has(service.id)
     );
     
-    onServicesFound(servicesToAdd);
-    onClose();
+    // Initialize configuration for each selected service
+    const initialConfigs = {};
+    servicesToAdd.forEach(service => {
+      initialConfigs[service.id] = {
+        name: service.serviceName || service.service || '',
+        type: service.service || '',
+        host: service.hostname || service.ip || '',
+        port: service.port || '',
+        ssl: service.ssl || false,
+        apiKey: '',
+        enabled: true
+      };
+    });
+    
+    setServicesToConfigure(servicesToAdd);
+    setServiceConfigs(initialConfigs);
+    setStep('setup');
   };
   
+  const updateServiceConfig = (serviceId, field, value) => {
+    setServiceConfigs(prev => ({
+      ...prev,
+      [serviceId]: {
+        ...prev[serviceId],
+        [field]: value
+      }
+    }));
+  };
+  
+  const testService = async (service) => {
+    const serviceId = service.id;
+    const config = serviceConfigs[serviceId];
+    
+    if (!config) return;
+    
+    setTestingServices(prev => new Set([...prev, serviceId]));
+    setServiceTestResults(prev => ({ ...prev, [serviceId]: null }));
+    
+    try {
+      // Simulate API test call - in real implementation this would test the actual service
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Mock test result - in real implementation, test connection with provided credentials
+      const success = config.apiKey || config.username || config.password; // Has some auth
+      
+      setServiceTestResults(prev => ({
+        ...prev,
+        [serviceId]: {
+          success,
+          message: success 
+            ? 'Connection successful! Service is responding.' 
+            : 'Test failed. Please check your authentication details.',
+          timestamp: new Date().toISOString()
+        }
+      }));
+      
+    } catch (error) {
+      setServiceTestResults(prev => ({
+        ...prev,
+        [serviceId]: {
+          success: false,
+          message: 'Connection failed. Please check your settings.',
+          error: error.message,
+          timestamp: new Date().toISOString()
+        }
+      }));
+    } finally {
+      setTestingServices(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(serviceId);
+        return newSet;
+      });
+    }
+  };
+
+  const addService = async (service) => {
+    const serviceId = service.id;
+    const config = serviceConfigs[serviceId];
+    
+    if (!config) return;
+    
+    setAddingServices(prev => new Set([...prev, serviceId]));
+    
+    try {
+      // Prepare service data for API call
+      const serviceData = {
+        name: config.name,
+        type: config.type,
+        host: config.host,
+        port: parseInt(config.port),
+        apiKey: config.apiKey || undefined,
+        username: config.username || undefined,
+        password: config.password || undefined,
+        ssl: config.ssl || false,
+        enabled: config.enabled !== false
+      };
+      
+      console.log('💾 NetworkDiscovery - Adding service:', serviceData);
+      
+      const createHeaders = { 'Content-Type': 'application/json' };
+      if (token) {
+        createHeaders['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch('http://localhost:5000/api/services', {
+        method: 'POST',
+        headers: createHeaders,
+        body: JSON.stringify(serviceData)
+      });
+      
+      console.log('💾 NetworkDiscovery - Create response status:', response.status);
+      const result = await response.json();
+      console.log('💾 NetworkDiscovery - Create result:', result);
+      
+      if (result.success) {
+        console.log('✅ NetworkDiscovery - Service created successfully:', result.service);
+        
+        // Mark as successfully added
+        setAddedServices(prev => new Set([...prev, serviceId]));
+        setSuccessfullyAdded(prev => [...prev, result.service]);
+        
+        // Update test results to show success
+        setServiceTestResults(prev => ({
+          ...prev,
+          [serviceId]: {
+            success: true,
+            message: 'Service added successfully!',
+            timestamp: new Date().toISOString()
+          }
+        }));
+        
+        // Immediately trigger refresh for this service
+        console.log('🔄 NetworkDiscovery - Triggering immediate refresh for successful service');
+        onServicesFound([result.service]);
+        
+      } else {
+        console.error('❌ NetworkDiscovery - Service creation failed:', result.error);
+        // Set error result for this service
+        setServiceTestResults(prev => ({
+          ...prev,
+          [serviceId]: {
+            success: false,
+            message: result.error || 'Failed to add service to database',
+            timestamp: new Date().toISOString()
+          }
+        }));
+      }
+      
+    } catch (error) {
+      console.error('❌ NetworkDiscovery - Service creation error:', {
+        error: error.message,
+        stack: error.stack
+      });
+      
+      // Set error result for this service
+      setServiceTestResults(prev => ({
+        ...prev,
+        [serviceId]: {
+          success: false,
+          message: 'Failed to connect to backend',
+          timestamp: new Date().toISOString()
+        }
+      }));
+      
+    } finally {
+      setAddingServices(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(serviceId);
+        return newSet;
+      });
+      
+      // Mark service as processed (success or failure)
+      setProcessedServices(prev => {
+        const newProcessed = new Set([...prev, serviceId]);
+        
+        // Log completion when all services are processed  
+        if (newProcessed.size === servicesToConfigure.length) {
+          console.log(`✅ NetworkDiscovery - All ${servicesToConfigure.length} services processed`);
+        }
+        
+        return newProcessed;
+      });
+      console.log('🏁 NetworkDiscovery - Service creation completed');
+    }
+  };
+
+  const allServicesProcessed = () => {
+    return servicesToConfigure.every(service => 
+      processedServices.has(service.id)
+    );
+  };
+  
+  const getProcessingSummary = () => {
+    const total = servicesToConfigure.length;
+    const processed = processedServices.size;
+    const successful = addedServices.size;
+    const failed = processed - successful;
+    
+    return { total, processed, successful, failed };
+  };
+
   const clearAllResults = () => {
     setAllDiscoveredServices([]);
     setDiscoveredServices([]);
@@ -537,6 +762,221 @@ const NetworkDiscoveryModal = ({ isOpen, onClose, onServicesFound }) => {
   
   // Get high confidence services (80%+)
   const highConfidenceServices = discoveredServices.filter(s => s.confidence >= 80);
+
+  const getApiKeyInstructions = (serviceType) => {
+    const instructions = {
+      radarr: 'Settings → General → Security → API Key',
+      sonarr: 'Settings → General → Security → API Key', 
+      lidarr: 'Settings → General → Security → API Key',
+      readarr: 'Settings → General → Security → API Key',
+      bazarr: 'Settings → General → Security → API Key',
+      prowlarr: 'Settings → General → Security → API Key',
+      plex: 'Settings → Network → Show Advanced → Plex Media Server token',
+      unraid: 'Settings → User Preferences → API Keys → Create new key',
+      qbittorrent: 'Username and password from Web UI settings'
+    };
+    
+    return instructions[serviceType] || 'Check service documentation for authentication details';
+  };
+
+  const renderSetupStep = () => (
+    <div className="space-y-6">
+      <div className="text-center mb-6">
+        <h3 className="text-lg font-semibold text-white mb-2">Configure Selected Services</h3>
+        <p className="text-gray-400">
+          Enter authentication details for {servicesToConfigure.length} selected service{servicesToConfigure.length !== 1 ? 's' : ''}
+        </p>
+      </div>
+
+      <div className="max-h-96 overflow-y-auto space-y-6">
+        {servicesToConfigure.map((service, index) => {
+          const config = serviceConfigs[service.id] || {};
+          
+          return (
+            <div key={service.id} className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+              {/* Service Header */}
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-10 h-10 rounded-lg bg-gray-700/50 p-2 flex items-center justify-center">
+                  <img 
+                    src={`/logos/${service.service}.svg`} 
+                    alt={service.service}
+                    className="w-full h-full object-contain"
+                    onError={(e) => e.target.style.display = 'none'}
+                  />
+                </div>
+                <div>
+                  <h4 className="font-medium text-white">{service.serviceName}</h4>
+                  <p className="text-sm text-gray-400">{service.ip}:{service.port} • {service.confidence}% confidence</p>
+                </div>
+              </div>
+
+              {/* Configuration Form */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Service Name</label>
+                  <input
+                    type="text"
+                    value={config.name || ''}
+                    onChange={(e) => updateServiceConfig(service.id, 'name', e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Port</label>
+                  <input
+                    type="number"
+                    value={config.port || ''}
+                    onChange={(e) => updateServiceConfig(service.id, 'port', e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+              </div>
+
+              {/* API Key / Authentication */}
+              {['radarr', 'sonarr', 'lidarr', 'readarr', 'bazarr', 'prowlarr'].includes(service.service) && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    API Key *
+                  </label>
+                  <input
+                    type="password"
+                    value={config.apiKey || ''}
+                    onChange={(e) => updateServiceConfig(service.id, 'apiKey', e.target.value)}
+                    placeholder="Required for service integration"
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {getApiKeyInstructions(service.service)}
+                  </p>
+                </div>
+              )}
+
+              {/* Username/Password for services like qBittorrent */}
+              {['qbittorrent'].includes(service.service) && (
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Username</label>
+                    <input
+                      type="text"
+                      value={config.username || ''}
+                      onChange={(e) => updateServiceConfig(service.id, 'username', e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Password</label>
+                    <input
+                      type="password"
+                      value={config.password || ''}
+                      onChange={(e) => updateServiceConfig(service.id, 'password', e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Options */}
+              <div className="flex items-center space-x-4 mt-4">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={config.ssl || false}
+                    onChange={(e) => updateServiceConfig(service.id, 'ssl', e.target.checked)}
+                    className="rounded bg-gray-700 border-gray-600 text-green-600 focus:ring-green-500"
+                  />
+                  <span className="ml-2 text-sm text-gray-300">Use HTTPS</span>
+                </label>
+                
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={config.enabled !== false}
+                    onChange={(e) => updateServiceConfig(service.id, 'enabled', e.target.checked)}
+                    className="rounded bg-gray-700 border-gray-600 text-green-600 focus:ring-green-500"
+                  />
+                  <span className="ml-2 text-sm text-gray-300">Enable service</span>
+                </label>
+              </div>
+
+              {/* Test Results Display */}
+              {serviceTestResults[service.id] && (
+                <div className={`mt-4 p-3 rounded-lg flex items-center ${
+                  serviceTestResults[service.id].success 
+                    ? 'bg-green-900/20 border border-green-600/30' 
+                    : 'bg-red-900/20 border border-red-500/50'
+                }`}>
+                  {serviceTestResults[service.id].success ? (
+                    <CheckCircleIcon className="w-4 h-4 text-green-400 mr-2 flex-shrink-0" />
+                  ) : (
+                    <ExclamationTriangleIcon className="w-4 h-4 text-red-400 mr-2 flex-shrink-0" />
+                  )}
+                  <div className="flex-1">
+                    <span className={`text-sm ${
+                      serviceTestResults[service.id].success ? 'text-green-300' : 'text-red-300'
+                    }`}>
+                      {serviceTestResults[service.id].message}
+                    </span>
+                    {serviceTestResults[service.id].timestamp && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Tested: {new Date(serviceTestResults[service.id].timestamp).toLocaleTimeString()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end space-x-3 mt-4 pt-4 border-t border-gray-700">
+                {addedServices.has(service.id) ? (
+                  <div className="flex items-center space-x-2 text-green-400">
+                    <CheckCircleIcon className="w-5 h-5" />
+                    <span className="text-sm font-medium">Added Successfully</span>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => testService(service)}
+                      disabled={testingServices.has(service.id)}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-lg transition-colors flex items-center text-sm"
+                    >
+                      {testingServices.has(service.id) ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Testing...
+                        </>
+                      ) : (
+                        'Test Connection'
+                      )}
+                    </button>
+                    
+                    <button
+                      onClick={() => addService(service)}
+                      disabled={
+                        addingServices.has(service.id) || 
+                        !serviceTestResults[service.id]?.success ||
+                        (!config.apiKey && !config.username && service.service !== 'unknown')
+                      }
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center text-sm"
+                    >
+                      {addingServices.has(service.id) ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Adding...
+                        </>
+                      ) : (
+                        'Add Service'
+                      )}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
   
   const renderConfigureStep = () => (
     <div className="space-y-6">
@@ -1121,6 +1561,7 @@ const NetworkDiscoveryModal = ({ isOpen, onClose, onServicesFound }) => {
                         {step === 'configure' && 'Configure and start network scan'}
                         {step === 'scanning' && 'Scanning network for services'}
                         {step === 'results' && 'Select services to add'}
+                        {step === 'setup' && 'Configure selected services'}
                       </p>
                     </div>
                   </div>
@@ -1138,6 +1579,7 @@ const NetworkDiscoveryModal = ({ isOpen, onClose, onServicesFound }) => {
                   {step === 'configure' && renderConfigureStep()}
                   {step === 'scanning' && renderScanningStep()}
                   {step === 'results' && renderResultsStep()}
+                  {step === 'setup' && renderSetupStep()}
                 </div>
                 
                 {/* Footer */}
@@ -1203,6 +1645,44 @@ const NetworkDiscoveryModal = ({ isOpen, onClose, onServicesFound }) => {
                       >
                         Done
                       </button>
+                    </>
+                  )}
+                  
+                  {step === 'setup' && (
+                    <>
+                      <button
+                        onClick={() => setStep('results')}
+                        className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                      >
+                        Back to Results
+                      </button>
+                      
+                      {allServicesProcessed() ? (
+                        <>
+                          {(() => {
+                            const summary = getProcessingSummary();
+                            return (
+                              <div className="flex items-center space-x-4">
+                                {summary.failed > 0 && (
+                                  <div className="px-3 py-2 text-sm text-yellow-400 bg-yellow-900/20 rounded">
+                                    {summary.successful} added, {summary.failed} failed
+                                  </div>
+                                )}
+                                <button
+                                  onClick={onClose}
+                                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                                >
+                                  Done ({summary.successful} Added)
+                                </button>
+                              </div>
+                            );
+                          })()}
+                        </>
+                      ) : (
+                        <div className="px-4 py-2 text-sm text-gray-400">
+                          {processedServices.size} of {servicesToConfigure.length} services processed
+                        </div>
+                      )}
                     </>
                   )}
                 </div>

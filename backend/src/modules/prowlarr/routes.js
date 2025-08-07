@@ -2,6 +2,10 @@ const express = require('express');
 const router = express.Router();
 const prowlarrService = require('./service');
 const { query } = require('../../database/connection');
+const { authenticateToken, requireRole } = require('../../auth/middleware');
+
+// Apply authentication to all routes
+router.use(authenticateToken);
 
 // Get stats for a specific Prowlarr instance
 router.get('/:id/stats', async (req, res) => {

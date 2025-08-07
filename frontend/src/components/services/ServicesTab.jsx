@@ -21,25 +21,38 @@ const ServicesTab = ({ services, loading, onRefresh, onDeleteService }) => {
   const [typeFilter, setTypeFilter] = useState('all');
 
   const handleServiceAdded = () => {
+    console.log('📝 ServicesTab - Service added, triggering refresh');
     onRefresh();
   };
 
   const handleServiceUpdated = () => {
+    console.log('✏️ ServicesTab - Service updated, triggering refresh');
     onRefresh();
   };
 
   const handleEditService = (service) => {
+    console.log('✏️ ServicesTab - Opening edit modal for service:', service);
     setEditingService(service);
     setShowEditModal(true);
   };
 
   const handleServiceClick = (service) => {
+    console.log('👆 ServicesTab - Service clicked, opening detail modal:', service);
     setSelectedService(service);
     setShowDetailModal(true);
   };
   
   const handleServicesDiscovered = (discoveredServices) => {
-    console.log('Discovered services:', discoveredServices);
+    console.log('🔍 ServicesTab - Services discovered:', discoveredServices);
+    console.log('🔄 ServicesTab - Forcing immediate refresh after discovery');
+    
+    // Force refresh with a small delay to ensure backend has processed
+    setTimeout(() => {
+      console.log('⚡ ServicesTab - Executing delayed refresh');
+      onRefresh();
+    }, 1000);
+    
+    // Also do immediate refresh
     onRefresh();
   };
 
@@ -277,6 +290,7 @@ const ServicesTab = ({ services, loading, onRefresh, onDeleteService }) => {
               setSelectedService(null);
             }}
             service={selectedService}
+            allServices={services}
           />
         </div>
       ) : (

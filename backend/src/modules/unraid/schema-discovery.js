@@ -4,11 +4,17 @@ const axios = require('axios');
  * Discover available GraphQL schema fields for Unraid API
  */
 async function discoverUnraidSchema() {
+  // SECURITY: Use environment variables for sensitive configuration
   const config = {
-    host: '192.168.15.5',
-    port: 80,
-    api_key: '993ef601cb3ad31dfbefcf08a811f47cdbeb1694fd2987fc170727d1ada896ad'
+    host: process.env.UNRAID_HOST || 'localhost',
+    port: parseInt(process.env.UNRAID_PORT) || 80,
+    api_key: process.env.UNRAID_API_KEY
   };
+
+  if (!config.api_key) {
+    console.error('UNRAID_API_KEY environment variable is required');
+    process.exit(1);
+  }
 
   // GraphQL introspection query to discover schema
   const introspectionQuery = `

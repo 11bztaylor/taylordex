@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 
 const AddServiceModal = ({ isOpen, onClose, onServiceAdded }) => {
+  const { token } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     type: 'radarr',
@@ -35,25 +37,37 @@ const AddServiceModal = ({ isOpen, onClose, onServiceAdded }) => {
   };
 
   const testConnection = async () => {
+    console.log('🧪 AddServiceModal - Starting connection test with data:', formData);
     setTesting(true);
     setTestResult(null);
     setError(null);
     
     try {
+      const testData = {
+        type: formData.type,
+        host: formData.host,
+        port: parseInt(formData.port),
+        apiKey: formData.apiKey
+      };
+      console.log('🧪 AddServiceModal - Sending test request:', testData);
+      
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch('http://localhost:5000/api/services/test', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: formData.type,
-          host: formData.host,
-          port: parseInt(formData.port),
-          apiKey: formData.apiKey
-        })
+        headers: headers,
+        body: JSON.stringify(testData)
       });
       
+      console.log('🧪 AddServiceModal - Test response status:', response.status);
       const result = await response.json();
+      console.log('🧪 AddServiceModal - Test result:', result);
       setTestResult(result);
     } catch (error) {
+      console.error('🧪 AddServiceModal - Test connection error:', error);
       setTestResult({ success: false, error: error.message });
     } finally {
       setTesting(false);
@@ -62,25 +76,37 @@ const AddServiceModal = ({ isOpen, onClose, onServiceAdded }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('💾 AddServiceModal - Starting service creation with data:', formData);
     setSaving(true);
     setError(null);
     
     try {
+      const serviceData = {
+        name: formData.name,
+        type: formData.type,
+        host: formData.host,
+        port: parseInt(formData.port),
+        apiKey: formData.apiKey
+      };
+      console.log('💾 AddServiceModal - Sending create request:', serviceData);
+      
+      const createHeaders = { 'Content-Type': 'application/json' };
+      if (token) {
+        createHeaders['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch('http://localhost:5000/api/services', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formData.name,
-          type: formData.type,
-          host: formData.host,
-          port: parseInt(formData.port),
-          apiKey: formData.apiKey
-        })
+        headers: createHeaders,
+        body: JSON.stringify(serviceData)
       });
       
+      console.log('💾 AddServiceModal - Create response status:', response.status);
       const result = await response.json();
+      console.log('💾 AddServiceModal - Create result:', result);
       
       if (result.success) {
+        console.log('✅ AddServiceModal - Service created successfully:', result.service);
         onServiceAdded();
         onClose();
         setFormData({
@@ -92,13 +118,18 @@ const AddServiceModal = ({ isOpen, onClose, onServiceAdded }) => {
         });
         setTestResult(null);
       } else {
+        console.error('❌ AddServiceModal - Service creation failed:', result.error);
         setError(result.error || 'Failed to add service');
       }
     } catch (error) {
-      console.error('Failed to add service:', error);
+      console.error('❌ AddServiceModal - Service creation error:', {
+        error: error.message,
+        stack: error.stack
+      });
       setError('Failed to connect to backend');
     } finally {
       setSaving(false);
+      console.log('🏁 AddServiceModal - Service creation completed');
     }
   };
 

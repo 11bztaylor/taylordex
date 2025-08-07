@@ -2,9 +2,13 @@ const express = require('express');
 const router = express.Router();
 const plexService = require('./service');
 const { query } = require('../../database/connection');
+const { authenticateToken, requireRole } = require('../../auth/middleware');
+
+// Apply authentication to all routes
+router.use(authenticateToken);
 
 // Test Plex connection
-router.post('/test', async (req, res) => {
+router.post('/test', requireRole('user'), async (req, res) => {
   try {
     const { host, port, apiKey } = req.body;
     
@@ -24,9 +28,10 @@ router.post('/test', async (req, res) => {
     const result = await plexService.testConnection(config);
     res.json(result);
   } catch (error) {
+    console.error('Plex connection test error:', error);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: 'Failed to test Plex connection'
     });
   }
 });
@@ -69,9 +74,10 @@ router.get('/:id/stats', async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('Plex stats error:', error);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: 'Failed to get Plex stats'
     });
   }
 });

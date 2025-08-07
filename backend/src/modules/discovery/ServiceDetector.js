@@ -145,39 +145,28 @@ class ServiceDetector {
       radarr: [
         {
           method: 'GET',
-          path: '/api/v3/system/status',
-          headers: {},
-          expect: { contains: 'radarr', field: 'appName' },
-          confidence: 95
-        },
-        {
-          method: 'GET',
           path: '/',
           headers: {},
           expect: { title: /radarr/i },
+          confidence: 90
+        },
+        {
+          method: 'GET',
+          path: '/api/v3/system/status',
+          headers: {},
+          expect: { status: [401, 403] }, // Expect unauthorized - means API exists but needs auth
           confidence: 85
         },
         {
           method: 'GET',
-          path: '/api/v3/movie',
+          path: '/login',
           headers: {},
-          expect: { status: [200, 401] },
-          confidence: 60  // Lowered confidence for generic API check
+          expect: { status: [200], title: /radarr/i },
+          confidence: 75
         }
       ],
       
       sonarr: [
-        {
-          method: 'GET',
-          path: '/api/v3/system/status',
-          headers: {},
-          expect: { 
-            jsonPattern: { appName: 'sonarr' },
-            headers: { 'content-type': 'application/json' },
-            matchThreshold: 0.9
-          },
-          confidence: 95
-        },
         {
           method: 'GET',
           path: '/',
@@ -191,29 +180,33 @@ class ServiceDetector {
         },
         {
           method: 'GET',
-          path: '/api/v3/series',
+          path: '/api/v3/system/status',
           headers: {},
-          expect: { 
-            status: [200, 401],
-            headers: { 'content-type': 'application/json' }
-          },
-          confidence: 75  // Higher confidence with header check
+          expect: { status: [401, 403] }, // Expect unauthorized - API exists but needs auth
+          confidence: 85
+        },
+        {
+          method: 'GET',
+          path: '/login',
+          headers: {},
+          expect: { status: [200], title: /sonarr/i },
+          confidence: 75
         }
       ],
       
       lidarr: [
         {
           method: 'GET',
-          path: '/api/v1/system/status',
-          headers: {},
-          expect: { contains: 'lidarr', field: 'appName' },
-          confidence: 95
-        },
-        {
-          method: 'GET',
           path: '/',
           headers: {},
           expect: { title: /lidarr/i },
+          confidence: 90
+        },
+        {
+          method: 'GET',
+          path: '/api/v1/system/status',
+          headers: {},
+          expect: { status: [401, 403] }, // Expect unauthorized - API exists but needs auth
           confidence: 80
         }
       ],
@@ -221,16 +214,16 @@ class ServiceDetector {
       readarr: [
         {
           method: 'GET',
-          path: '/api/v1/system/status',
-          headers: {},
-          expect: { contains: 'readarr', field: 'appName' },
-          confidence: 95
-        },
-        {
-          method: 'GET',
           path: '/',
           headers: {},
           expect: { title: /readarr/i },
+          confidence: 90
+        },
+        {
+          method: 'GET',
+          path: '/api/v1/system/status',
+          headers: {},
+          expect: { status: [401, 403] }, // Expect unauthorized - API exists but needs auth
           confidence: 80
         }
       ],
@@ -238,16 +231,16 @@ class ServiceDetector {
       bazarr: [
         {
           method: 'GET',
-          path: '/api/system/status',
-          headers: {},
-          expect: { contains: 'bazarr' },
-          confidence: 90
-        },
-        {
-          method: 'GET',
           path: '/',
           headers: {},
           expect: { title: /bazarr/i },
+          confidence: 85
+        },
+        {
+          method: 'GET',
+          path: '/api/system/status',
+          headers: {},
+          expect: { status: [401, 403] }, // Expect unauthorized - API exists but needs auth
           confidence: 75
         }
       ],
@@ -255,16 +248,16 @@ class ServiceDetector {
       prowlarr: [
         {
           method: 'GET',
-          path: '/api/v1/system/status',
-          headers: {},
-          expect: { contains: 'prowlarr', field: 'appName' },
-          confidence: 95
-        },
-        {
-          method: 'GET',
           path: '/',
           headers: {},
           expect: { title: /prowlarr/i },
+          confidence: 90
+        },
+        {
+          method: 'GET',
+          path: '/api/v1/system/status',
+          headers: {},
+          expect: { status: [401, 403] }, // Expect unauthorized - API exists but needs auth
           confidence: 80
         }
       ],

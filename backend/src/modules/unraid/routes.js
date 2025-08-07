@@ -1,9 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const unraidService = require('./service');
+const { authenticateToken, requireRole } = require('../../auth/middleware');
+
+// Apply authentication to all routes
+router.use(authenticateToken);
 
 // Test connection endpoint (no database required)
-router.post('/test-connection', async (req, res) => {
+router.post('/test-connection', requireRole('user'), async (req, res) => {
   try {
     const { host, port, api_key } = req.body;
     
@@ -28,7 +32,7 @@ router.post('/test-connection', async (req, res) => {
 });
 
 // Get stats with direct config (no database required)
-router.post('/get-stats', async (req, res) => {
+router.post('/get-stats', requireRole('user'), async (req, res) => {
   try {
     const { host, port, api_key } = req.body;
     
@@ -420,7 +424,7 @@ function generateRecommendations(testResults) {
 }
 
 // Docker container control routes
-router.post('/:id/docker/:containerName/:action', async (req, res) => {
+router.post('/:id/docker/:containerName/:action', requireRole('user'), async (req, res) => {
   try {
     const { query } = require('../../database/connection');
     const { id: serviceId, containerName, action } = req.params;

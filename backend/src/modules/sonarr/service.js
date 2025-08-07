@@ -23,7 +23,8 @@ class SonarrService extends BaseService {
         queue,
         calendar,
         history,
-        health
+        health,
+        rootFolders
       ] = await Promise.all([
         this.apiCall(config, '/api/v3/series'),
         this.apiCall(config, '/api/v3/system/status'),
@@ -31,7 +32,8 @@ class SonarrService extends BaseService {
         this.apiCall(config, '/api/v3/queue'),
         this.apiCall(config, '/api/v3/calendar?start=' + new Date().toISOString() + '&end=' + new Date(Date.now() + 7*24*60*60*1000).toISOString()),
         this.apiCall(config, '/api/v3/history?pageSize=20&sortKey=date&sortDirection=descending'),
-        this.apiCall(config, '/api/v3/health').catch(() => [])
+        this.apiCall(config, '/api/v3/health').catch(() => []),
+        this.apiCall(config, '/api/v3/rootfolder').catch(() => [])
       ]);
 
       // Calculate stats
@@ -45,7 +47,9 @@ class SonarrService extends BaseService {
       
       for (const show of series) {
         if (show.statistics) {
-          totalEpisodes += show.statistics.totalEpisodeCount || 0;
+          // Use episodeCount instead of totalEpisodeCount to match Sonarr dashboard
+          // episodeCount = aired episodes, totalEpisodeCount = all episodes including future
+          totalEpisodes += show.statistics.episodeCount || 0;
           episodesWithFiles += show.statistics.episodeFileCount || 0;
         }
         if (show.seasons) {
@@ -57,10 +61,78 @@ class SonarrService extends BaseService {
       const missingEpisodes = totalEpisodes - episodesWithFiles;
       const monitoredSeries = series.filter(s => s.monitored).length;
       
-      // Storage
-      const totalSpace = diskSpace.reduce((acc, disk) => acc + disk.totalSpace, 0);
-      const freeSpace = diskSpace.reduce((acc, disk) => acc + disk.freeSpace, 0);
+      // Storage - Enhanced with path information
+      // Enhanced storage processing with duplicate detection and path visibility
+      const processedDisks = diskSpace.map(disk => {
+        const duplicateOf = diskSpace.find(d => 
+          d !== disk && d.totalSpace === disk.totalSpace && d.freeSpace === disk.freeSpace
+        );
+        return {
+          ...disk,
+          isDuplicate: !!duplicateOf,
+          duplicateOfPath: duplicateOf?.path
+        };
+      });
+      
+      // Get unique disks for metrics calculation (avoid double counting)
+      const uniqueDisks = processedDisks.filter(disk => !disk.isDuplicate);
+      
+      const primaryDisk = uniqueDisks.reduce((largest, current) => 
+        current.totalSpace > largest.totalSpace ? current : largest
+      , uniqueDisks[0] || { totalSpace: 0, freeSpace: 0 });
+      
+      const totalSpace = primaryDisk.totalSpace;
+      const freeSpace = primaryDisk.freeSpace;
       const usedSpace = totalSpace - freeSpace;
+      
+      // Enhanced storage paths with duplicate detection and Docker/NAS integration
+      const storagePaths = processedDisks.map(disk => {
+        // Find matching root folder for additional context
+        const matchingRoot = rootFolders.find(root => 
+          disk.path.includes(root.path) || root.path.includes(disk.path)
+        );
+        
+        const isDockerPath = disk.path.startsWith('/') && !disk.path.startsWith('/mnt') && !disk.path.startsWith('/media');
+        
+        return {
+          path: disk.path,
+          label: disk.label || matchingRoot?.path?.split('/').pop() || disk.path.split('/').pop() || 'Root',
+          totalSpace: disk.totalSpace,
+          freeSpace: disk.freeSpace,
+          usedSpace: disk.totalSpace - disk.freeSpace,
+          usedPercent: Math.round(((disk.totalSpace - disk.freeSpace) / disk.totalSpace) * 100),
+          accessible: disk.totalSpace > 0,
+          isRootFolder: !!matchingRoot,
+          rootFolderId: matchingRoot?.id || null,
+          // Enhanced properties
+          isDuplicate: disk.isDuplicate,
+          duplicateOfPath: disk.duplicateOfPath,
+          isDockerMount: isDockerPath,
+          dockerHost: config.host !== 'localhost' && config.host !== '127.0.0.1' ? config.host : null,
+          isPrimary: disk === primaryDisk
+        };
+      });
+      
+      // Add root folders that don't have disk space info
+      rootFolders.forEach(root => {
+        const existingPath = storagePaths.find(path => 
+          path.path.includes(root.path) || root.path.includes(path.path)
+        );
+        
+        if (!existingPath) {
+          storagePaths.push({
+            path: root.path,
+            label: root.path.split('/').pop() || 'Root Folder',
+            totalSpace: null,
+            freeSpace: null,
+            usedSpace: null,
+            usedPercent: 0,
+            accessible: true, // Root folders are configured, so assume accessible
+            isRootFolder: true,
+            rootFolderId: root.id
+          });
+        }
+      });
 
       // Recent episodes
       const recentEpisodes = history.records
@@ -144,6 +216,7 @@ class SonarrService extends BaseService {
         // Basic stats
         series: series.length,
         episodes: totalEpisodes,
+        files: episodesWithFiles,
         missing: missingEpisodes,
         monitored: monitoredSeries,
         queue: queue.totalRecords || 0,
@@ -151,6 +224,9 @@ class SonarrService extends BaseService {
         diskSpaceTotal: this.formatBytes(totalSpace),
         diskSpaceFree: this.formatBytes(freeSpace),
         diskSpaceUsedPercent: Math.round((usedSpace / totalSpace) * 100),
+        storagePaths,
+        // Docker/NAS host integration
+        dockerHost: config.host !== 'localhost' && config.host !== '127.0.0.1' ? config.host : null,
         
         // Enhanced stats
         endedSeries,
@@ -167,7 +243,14 @@ class SonarrService extends BaseService {
         
         // System info
         version: systemStatus.version,
-        status: 'online'
+        status: 'online',
+        
+        // Total file size calculation (sum of all episode files)
+        totalFileSize: this.formatBytes(
+          series.reduce((total, show) => {
+            return total + (show.statistics?.sizeOnDisk || 0);
+          }, 0)
+        )
       };
     } catch (error) {
       console.error('Error fetching Sonarr stats:', error.message);

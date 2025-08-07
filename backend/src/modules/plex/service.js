@@ -43,10 +43,11 @@ class PlexService extends BaseService {
       console.log(`Fetching comprehensive Plex stats from ${config.host}:${config.port}`);
       
       // Get basic server info and libraries
-      const [identity, libraries, sessions] = await Promise.all([
+      const [identity, libraries, sessions, accounts] = await Promise.all([
         this.apiCall(config, '/identity'),
         this.apiCall(config, '/library/sections'),
-        this.apiCall(config, '/status/sessions')
+        this.apiCall(config, '/status/sessions'),
+        this.apiCall(config, '/accounts').catch(() => ({ MediaContainer: { size: 0 } }))
       ]);
 
       let totalMovies = 0;
@@ -166,6 +167,7 @@ class PlexService extends BaseService {
         photos: totalPhotos,
         libraries: libraries.MediaContainer?.size || 0,
         activeStreams: activeStreams,
+        totalUsers: accounts.MediaContainer?.size || 0,
         
         // Enhanced stats
         libraryDetails,

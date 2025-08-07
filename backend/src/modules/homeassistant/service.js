@@ -97,6 +97,7 @@ class HomeAssistantService extends BaseService {
       return {
         version: configData.version,
         location: configData.location_name,
+        status: 'online',
         entities: {
           total: states.length,
           counts: entityCounts

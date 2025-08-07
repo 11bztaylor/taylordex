@@ -1,15 +1,33 @@
 import React, { useState, useEffect, Fragment } from 'react';
 import { Menu, Transition } from '@headlessui/react';
-import { EllipsisVerticalIcon, TrashIcon, ArrowPathIcon, PencilIcon, FilmIcon, TvIcon, MusicalNoteIcon, BookOpenIcon, MagnifyingGlassIcon, ServerIcon, PlayIcon, CubeIcon, ArrowTopRightOnSquareIcon, HomeIcon } from '@heroicons/react/24/outline';
+import { 
+  EllipsisVerticalIcon, TrashIcon, ArrowPathIcon, PencilIcon, 
+  FilmIcon, TvIcon, MusicalNoteIcon, BookOpenIcon, MagnifyingGlassIcon, 
+  ServerIcon, PlayIcon, CubeIcon, ArrowTopRightOnSquareIcon, HomeIcon,
+  ChartBarIcon, CloudIcon, ShieldCheckIcon, CodeBracketIcon, 
+  EyeIcon, WrenchScrewdriverIcon, CircleStackIcon, PlayCircleIcon
+} from '@heroicons/react/24/outline';
+import apiClient from '../../api/client';
 
 const ServiceCard = ({ service, onDelete, onRefresh, onEdit, onClick }) => {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState(service.stats || null);
+  const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [logoError, setLogoError] = useState(false);
 
-  // Heroicon fallbacks for each service type
+  // Updated icons for generic service types and specific services
   const ServiceIcons = {
+    // Generic types
+    media: PlayIcon,
+    automation: HomeIcon,
+    infrastructure: ServerIcon,
+    monitoring: ChartBarIcon,
+    security: ShieldCheckIcon,
+    storage: CloudIcon,
+    backup: CircleStackIcon,
+    development: CodeBracketIcon,
+    
+    // Specific services (for backwards compatibility)
     radarr: FilmIcon,
     sonarr: TvIcon,
     lidarr: MusicalNoteIcon,
@@ -17,12 +35,30 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit, onClick }) => {
     prowlarr: MagnifyingGlassIcon,
     bazarr: TvIcon,
     plex: PlayIcon,
+    jellyfin: PlayIcon,
     homeassistant: HomeIcon,
-    unraid: ServerIcon
+    unraid: ServerIcon,
+    portainer: CubeIcon,
+    grafana: ChartBarIcon,
+    nextcloud: CloudIcon,
+    gitea: CodeBracketIcon,
+    overseerr: PlayCircleIcon,
+    tautulli: ChartBarIcon
   };
 
-  // Brand colors for each service
+  // Updated colors for generic types and specific services
   const brandColors = {
+    // Generic types
+    media: 'from-purple-500 to-pink-600',
+    automation: 'from-blue-500 to-cyan-600', 
+    infrastructure: 'from-gray-600 to-slate-700',
+    monitoring: 'from-green-500 to-emerald-600',
+    security: 'from-red-500 to-rose-600',
+    storage: 'from-indigo-500 to-purple-600',
+    backup: 'from-yellow-500 to-amber-600',
+    development: 'from-orange-500 to-red-600',
+    
+    // Specific services
     radarr: 'from-orange-500 to-orange-600',
     sonarr: 'from-blue-500 to-blue-600',
     bazarr: 'from-purple-500 to-purple-600',
@@ -30,64 +66,133 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit, onClick }) => {
     readarr: 'from-red-500 to-red-600',
     prowlarr: 'from-yellow-500 to-yellow-600',
     plex: 'from-yellow-400 to-orange-500',
+    jellyfin: 'from-purple-400 to-blue-500',
     homeassistant: 'from-blue-600 to-indigo-600',
-    unraid: 'from-orange-500 to-red-500'
+    unraid: 'from-orange-500 to-red-500',
+    portainer: 'from-blue-400 to-blue-600',
+    grafana: 'from-orange-400 to-red-500',
+    nextcloud: 'from-blue-500 to-indigo-600',
+    gitea: 'from-green-500 to-teal-600',
+    overseerr: 'from-blue-500 to-purple-600',
+    tautulli: 'from-green-400 to-blue-500'
   };
 
   useEffect(() => {
-    fetchStats();
-  }, [service.id, service.type]);
+    console.log(`🔧 ServiceCard [${service.name}] - useEffect triggered`, {
+      serviceId: service.id,
+      serviceName: service.name,
+      serviceType: service.type,
+      hasStats: !!(service.stats && Object.keys(service.stats).length > 0),
+      statsKeys: service.stats ? Object.keys(service.stats) : [],
+      service: service
+    });
+
+    // Use stats from service object (populated by backend RBAC filter)
+    if (service.stats && Object.keys(service.stats).length > 0) {
+      console.log(`✅ ServiceCard [${service.name}] - Using provided stats`, service.stats);
+      setStats(service.stats);
+      setLoading(false);
+    } else {
+      console.log(`⚠️ ServiceCard [${service.name}] - No stats provided, fetching...`);
+      // Fallback: try to fetch stats if not provided
+      fetchStats();
+    }
+  }, [service.id, service.stats]);
 
   const fetchStats = async () => {
+    console.log(`🔄 ServiceCard [${service.name}] - Starting stats fetch for service ID ${service.id}`);
     try {
-      if (['radarr', 'sonarr', 'lidarr', 'readarr', 'bazarr', 'prowlarr', 'plex', 'homeassistant', 'unraid'].includes(service.type)) {
-        const response = await fetch(`http://localhost:5000/api/${service.type}/${service.id}/stats`);
-        const data = await response.json();
-        
-        if (data.success) {
-          setStats(data.stats);
-        }
+      setLoading(true);
+      // Use the generic service endpoint for stats
+      const url = `/api/services/${service.id}/stats`;
+      console.log(`📡 ServiceCard [${service.name}] - Fetching from: ${url}`);
+      
+      const response = await fetch(url);
+      console.log(`📡 ServiceCard [${service.name}] - Response status: ${response.status}`);
+      
+      const data = await response.json();
+      console.log(`📡 ServiceCard [${service.name}] - Response data:`, data);
+      
+      if (data.success && data.stats) {
+        console.log(`✅ ServiceCard [${service.name}] - Stats fetched successfully:`, data.stats);
+        setStats(data.stats);
+      } else {
+        console.warn(`⚠️ ServiceCard [${service.name}] - No stats in response or fetch failed`, data);
       }
     } catch (error) {
-      console.error(`Failed to fetch stats for ${service.name}:`, error);
+      console.error(`❌ ServiceCard [${service.name}] - Failed to fetch stats:`, {
+        error: error.message,
+        stack: error.stack
+      });
     } finally {
       setLoading(false);
+      console.log(`🏁 ServiceCard [${service.name}] - Stats fetch completed`);
     }
   };
 
   const handleDelete = async () => {
+    console.log(`🗑️ ServiceCard [${service.name}] - Delete requested for service ID ${service.id}`);
+    
     if (!window.confirm(`Delete ${service.name}? This cannot be undone.`)) {
+      console.log(`❌ ServiceCard [${service.name}] - Delete cancelled by user`);
       return;
     }
 
+    console.log(`🗑️ ServiceCard [${service.name}] - Delete confirmed, proceeding...`);
     setDeleting(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/services/${service.id}`, {
-        method: 'DELETE'
-      });
+      console.log(`🗑️ ServiceCard [${service.name}] - DELETE request via apiClient for service ID: ${service.id}`);
       
-      const data = await response.json();
+      const data = await apiClient.deleteService(service.id);
+      console.log(`🗑️ ServiceCard [${service.name}] - DELETE response data:`, data);
+      
       if (data.success) {
+        console.log(`✅ ServiceCard [${service.name}] - Delete successful, calling onDelete callback`);
         onDelete(service.id);
       } else {
+        console.error(`❌ ServiceCard [${service.name}] - Delete failed:`, data.error);
         alert(`Failed to delete: ${data.error}`);
       }
     } catch (error) {
-      console.error('Delete failed:', error);
+      console.error(`❌ ServiceCard [${service.name}] - Delete error:`, {
+        error: error.message,
+        stack: error.stack
+      });
       alert('Failed to delete service');
     } finally {
       setDeleting(false);
+      console.log(`🏁 ServiceCard [${service.name}] - Delete operation completed`);
     }
   };
 
   const handleRefresh = () => {
+    console.log(`🔄 ServiceCard [${service.name}] - Refresh requested`);
     setLoading(true);
     fetchStats();
-    if (onRefresh) onRefresh();
+    if (onRefresh) {
+      console.log(`🔄 ServiceCard [${service.name}] - Calling onRefresh callback`);
+      onRefresh();
+    }
   };
 
-  const IconComponent = ServiceIcons[service.type.toLowerCase()] || ServiceIcons.radarr;
-  const gradientClass = brandColors[service.type.toLowerCase()] || brandColors.radarr;
+  // Resolve icon and color - try service name first, then type, then fallback
+  const getIconComponent = () => {
+    const serviceName = service.name.toLowerCase().replace(/\s+/g, '');
+    const serviceType = service.type.toLowerCase();
+    
+    return ServiceIcons[serviceName] || ServiceIcons[serviceType] || ServerIcon;
+  };
+  
+  const getGradientClass = () => {
+    const serviceName = service.name.toLowerCase().replace(/\s+/g, '');
+    const serviceType = service.type.toLowerCase();
+    
+    return brandColors[serviceName] || brandColors[serviceType] || 'from-gray-500 to-gray-600';
+  };
+
+  const IconComponent = getIconComponent();
+  const gradientClass = getGradientClass();
+  // Use service type for logo, not service name (for custom named services)
   const logoPath = `/logos/${service.type.toLowerCase()}.svg`;
 
   return (
@@ -214,6 +319,12 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit, onClick }) => {
                       <span className="text-sm text-green-400 font-medium">{stats.movies.toLocaleString()}</span>
                     </div>
                   )}
+                  {stats.files !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Files</span>
+                      <span className="text-sm text-blue-400 font-medium">{stats.files.toLocaleString()}</span>
+                    </div>
+                  )}
                   {stats.missing !== undefined && (
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-400">Missing</span>
@@ -237,6 +348,12 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit, onClick }) => {
                       <span className="text-sm text-green-400 font-medium">{stats.episodes?.toLocaleString() || 'N/A'}</span>
                     </div>
                   )}
+                  {stats.files !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Files</span>
+                      <span className="text-sm text-blue-400 font-medium">{stats.files?.toLocaleString() || 'N/A'}</span>
+                    </div>
+                  )}
                 </>
               )}
               
@@ -254,10 +371,22 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit, onClick }) => {
                       <span className="text-sm text-green-400 font-medium">{stats.shows.toLocaleString()}</span>
                     </div>
                   )}
+                  {stats.episodes !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Episodes</span>
+                      <span className="text-sm text-green-400 font-medium">{stats.episodes.toLocaleString()}</span>
+                    </div>
+                  )}
                   {stats.activeStreams !== undefined && (
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-400">Active Streams</span>
                       <span className="text-sm text-blue-400 font-medium">{stats.activeStreams}</span>
+                    </div>
+                  )}
+                  {stats.totalUsers !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Users</span>
+                      <span className="text-sm text-purple-400 font-medium">{stats.totalUsers}</span>
                     </div>
                   )}
                 </>
@@ -309,6 +438,35 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit, onClick }) => {
                 </>
               )}
               
+              {service.type === 'qbittorrent' && (
+                <>
+                  {stats.torrents !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Torrents</span>
+                      <span className="text-sm text-green-400 font-medium">{stats.torrents.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {stats.active !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Active</span>
+                      <span className="text-sm text-blue-400 font-medium">{stats.active}</span>
+                    </div>
+                  )}
+                  {stats.downloadSpeed && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Download</span>
+                      <span className="text-sm text-yellow-400 font-medium">{stats.downloadSpeed}</span>
+                    </div>
+                  )}
+                  {stats.uploadSpeed && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-400">Upload</span>
+                      <span className="text-sm text-purple-400 font-medium">{stats.uploadSpeed}</span>
+                    </div>
+                  )}
+                </>
+              )}
+
               {service.type === 'unraid' && (
                 <>
                   {stats.uptime && (
@@ -377,10 +535,18 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit, onClick }) => {
               )}
 
               {/* Common stats for all services */}
-              {stats.diskSpace && (
+              {stats.diskSpace && !stats.diskSpace.includes('%') && (
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-400">Disk Usage</span>
                   <span className="text-sm text-gray-300 font-medium">{stats.diskSpace}</span>
+                </div>
+              )}
+              
+              {/* Show total file size if available (for Sonarr/Radarr) */}
+              {stats.totalFileSize && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-400">Total Size</span>
+                  <span className="text-sm text-gray-300 font-medium">{stats.totalFileSize}</span>
                 </div>
               )}
 
