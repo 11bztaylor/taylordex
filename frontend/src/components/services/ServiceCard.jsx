@@ -615,13 +615,7 @@ const ServiceCard = ({ service, onDelete, onRefresh, onEdit, onClick }) => {
                 </>
               )}
 
-              {/* Common stats for all services */}
-              {stats.diskSpace && !stats.diskSpace.includes('%') && (
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-400">Disk Usage</span>
-                  <span className="text-sm text-gray-300 font-medium">{stats.diskSpace}</span>
-                </div>
-              )}
+              {/* Common stats for all services - Disk usage removed per request */}
               
               {/* Show total file size if available (for Sonarr/Radarr) */}
               {stats.totalFileSize && (

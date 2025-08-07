@@ -16,8 +16,21 @@ class QBittorrentService extends BaseService {
     try {
       const loginUrl = this.buildUrl(config.host, config.port, '/api/v2/auth/login');
       const formData = new URLSearchParams();
-      formData.append('username', config.username || 'admin');
-      formData.append('password', config.password || '');
+      
+      // Support both individual fields and api_key (formatted as username:password)
+      let username, password;
+      
+      if (config.api_key && config.api_key.includes(':')) {
+        // If api_key is in format "username:password"
+        [username, password] = config.api_key.split(':');
+      } else {
+        // Use individual fields or defaults
+        username = config.username || 'admin';
+        password = config.password || config.api_key || '';
+      }
+      
+      formData.append('username', username);
+      formData.append('password', password);
 
       const response = await this.axios.post(loginUrl, formData, {
         headers: this.getHeaders(config),
@@ -31,8 +44,14 @@ class QBittorrentService extends BaseService {
 
       return response.data === 'Ok.';
     } catch (error) {
-      console.error('qBittorrent authentication failed:', error.message);
-      throw error;
+      console.error('qBittorrent authentication failed:', {
+        message: error.message,
+        host: config.host,
+        port: config.port,
+        hasApiKey: !!config.api_key,
+        response: error.response?.data
+      });
+      throw new Error(`Authentication failed: ${error.response?.data || error.message}`);
     }
   }
 
