@@ -25,6 +25,7 @@ const logger = require('./src/utils/logger');
 const requestLogger = require('./src/middleware/requestLogger');
 const statsCollector = require('./src/utils/statsCollector');
 const { addResponseHelpers } = require('./src/utils/apiResponse');
+const plexDuplicateScheduler = require('./src/schedulers/plexDuplicateScheduler');
 
 const app = express();
 
@@ -185,6 +186,14 @@ async function startServer() {
         logger.info('✅ Stats collector started successfully');
       } catch (error) {
         logger.error('❌ Failed to start stats collector', { error: error.message });
+      }
+
+      // Start Plex duplicate background scheduler
+      try {
+        plexDuplicateScheduler.start();
+        logger.info('🕒 Plex duplicate scheduler started - scans daily at 3 AM');
+      } catch (error) {
+        logger.error('❌ Failed to start Plex duplicate scheduler', { error: error.message });
       }
     });
   } catch (error) {

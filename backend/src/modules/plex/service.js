@@ -364,6 +364,9 @@ class PlexService extends BaseService {
   async findDuplicatesManually(config, library, duplicatesByLibrary) {
     console.log(`Manual duplicate detection for library: ${library.title} (${library.type})`);
     
+    // First, try to detect movies with multiple video files (strongest indicator)
+    const multiFileDetection = await this.detectMultipleVideoFiles(config, library);
+    
     try {
       // Get all items in the library (increased to 5000 for large libraries)
       const allItems = await this.apiCall(config, `/library/sections/${library.key}/all?X-Plex-Container-Size=5000`);
@@ -378,7 +381,40 @@ class PlexService extends BaseService {
       // Enhanced grouping with fuzzy matching and multiple strategies
       const titleGroups = {};
       
+      // First, process items with multiple files (highest confidence duplicates)
+      console.log(`🎯 Processing ${multiFileDetection.length} multi-file items as definite duplicates...`);
+      multiFileDetection.forEach(multiFileItem => {
+        const groupKey = `${this.normalizeTitle(multiFileItem.title)}_${multiFileItem.year || 'unknown'}`;
+        
+        if (!titleGroups[groupKey]) {
+          titleGroups[groupKey] = {
+            title: multiFileItem.title,
+            year: multiFileItem.year,
+            matchingKeys: [groupKey],
+            items: [],
+            hasMultipleFiles: true,
+            confidence: 'high'
+          };
+        }
+        
+        titleGroups[groupKey].items.push({
+          ratingKey: multiFileItem.ratingKey,
+          title: multiFileItem.title,
+          year: multiFileItem.year,
+          addedAt: multiFileItem.addedAt,
+          rating: multiFileItem.rating,
+          thumb: multiFileItem.thumb,
+          videoFileCount: multiFileItem.videoFileCount,
+          detectionMethod: 'multiple_files'
+        });
+      });
+      
+      // Then process remaining items with traditional fuzzy matching
       for (const item of allItems.MediaContainer.Metadata) {
+        // Skip if already processed as multi-file item
+        if (multiFileDetection.find(mf => mf.ratingKey === item.ratingKey)) {
+          continue;
+        }
         const originalTitle = item.title || '';
         const year = item.year || 'unknown';
         
@@ -805,6 +841,91 @@ class PlexService extends BaseService {
     
     const maxLength = Math.max(str1.length, str2.length);
     return (maxLength - matrix[str2.length][str1.length]) / maxLength;
+  }
+
+  async detectMultipleVideoFiles(config, library) {
+    console.log(`🎯 Detecting items with multiple video files in ${library.title}...`);
+    
+    try {
+      // Get all items in the library
+      const allItems = await this.apiCall(config, `/library/sections/${library.key}/all?X-Plex-Container-Size=5000`);
+      
+      if (!allItems.MediaContainer?.Metadata) {
+        return [];
+      }
+
+      const multiFileItems = [];
+      
+      // Check each item for multiple video files
+      for (const item of allItems.MediaContainer.Metadata) {
+        try {
+          // Get detailed metadata to access Media array
+          const details = await this.apiCall(config, `/library/metadata/${item.ratingKey}`);
+          const metadata = details.MediaContainer?.Metadata?.[0];
+          
+          if (!metadata?.Media || !Array.isArray(metadata.Media)) {
+            continue;
+          }
+
+          // Count total video files across all media entries
+          let totalVideoFiles = 0;
+          const videoFiles = [];
+          
+          metadata.Media.forEach(media => {
+            if (media.Part && Array.isArray(media.Part)) {
+              media.Part.forEach(part => {
+                // Only count video files (movies should have video files)
+                if (part.file && !part.file.match(/\.(srt|sub|idx|sup|ass|ssa)$/i)) {
+                  totalVideoFiles++;
+                  videoFiles.push({
+                    file: part.file,
+                    size: part.size || 0,
+                    duration: part.duration || 0,
+                    container: part.container,
+                    videoResolution: media.videoResolution || 'Unknown',
+                    bitrate: media.bitrate || 0,
+                    videoCodec: media.videoCodec || 'Unknown',
+                    audioChannels: media.audioChannels || 0
+                  });
+                }
+              });
+            }
+          });
+
+          // If this item has 2+ video files, it's definitely a duplicate situation
+          if (totalVideoFiles >= 2) {
+            console.log(`🎬 "${item.title}" has ${totalVideoFiles} video files - definite duplicate`);
+            
+            multiFileItems.push({
+              ratingKey: item.ratingKey,
+              title: item.title,
+              year: item.year,
+              videoFileCount: totalVideoFiles,
+              videoFiles: videoFiles,
+              totalSize: videoFiles.reduce((sum, f) => sum + (f.size || 0), 0),
+              addedAt: item.addedAt ? new Date(item.addedAt * 1000).toISOString() : null,
+              rating: item.rating,
+              thumb: item.thumb,
+              detectionMethod: 'multiple_files',
+              confidence: 'high' // High confidence for multiple file detection
+            });
+          }
+        } catch (itemError) {
+          // Skip items that can't be processed
+          continue;
+        }
+      }
+
+      if (multiFileItems.length > 0) {
+        console.log(`🎯 Multiple file detection found ${multiFileItems.length} definite duplicates`);
+      }
+
+      return multiFileItems;
+      
+    } catch (error) {
+      console.error(`Error detecting multiple video files in ${library.title}:`, error.message);
+      return [];
+    }
   }
 }
 

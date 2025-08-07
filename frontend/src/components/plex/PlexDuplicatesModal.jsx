@@ -39,7 +39,7 @@ const PlexDuplicatesModal = ({ isOpen, onClose, service }) => {
     }
   }, [isOpen, service?.id]); // Only depend on service ID, not the entire service object
 
-  const fetchDuplicates = async () => {
+  const fetchDuplicates = async (forceScan = false) => {
     if (!service?.id) return;
     
     setLoading(true);
@@ -50,9 +50,8 @@ const PlexDuplicatesModal = ({ isOpen, onClose, service }) => {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`/api/plex/${service.id}/duplicates`, {
-        headers
-      });
+      const url = `/api/plex/${service.id}/duplicates${forceScan ? '?force_scan=true' : ''}`;
+      const response = await fetch(url, { headers });
       const data = await response.json();
       
       if (data.success) {
@@ -225,14 +224,24 @@ const PlexDuplicatesModal = ({ isOpen, onClose, service }) => {
                       </option>
                     ))}
                   </select>
-                  <button
-                    onClick={fetchDuplicates}
-                    disabled={loading}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-lg transition-colors flex items-center"
-                  >
-                    <ArrowPathIcon className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                    Refresh
-                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => fetchDuplicates(false)}
+                      disabled={loading}
+                      className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-lg transition-colors flex items-center text-sm"
+                    >
+                      <ArrowPathIcon className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </button>
+                    <button
+                      onClick={() => fetchDuplicates(true)}
+                      disabled={loading}
+                      className="px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white rounded-lg transition-colors flex items-center text-sm"
+                    >
+                      <MagnifyingGlassIcon className="w-4 h-4 mr-1" />
+                      Live Scan
+                    </button>
+                  </div>
                 </div>
 
                 {/* Content */}
@@ -275,6 +284,31 @@ const PlexDuplicatesModal = ({ isOpen, onClose, service }) => {
                             <div className="text-sm text-gray-400">Libraries</div>
                           </div>
                         </div>
+                        
+                        {/* Data Source Indicator */}
+                        <div className="mt-4 pt-4 border-t border-gray-700/50 flex items-center justify-between text-xs">
+                          <div className="flex items-center">
+                            {duplicates.cached !== false ? (
+                              <>
+                                <div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>
+                                <span className="text-blue-400">Cached Results</span>
+                                {duplicates.scannedAt && (
+                                  <span className="text-gray-500 ml-2">
+                                    • Last scan: {new Date(duplicates.scannedAt).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse mr-2"></div>
+                                <span className="text-green-400">Live Scan Results</span>
+                              </>
+                            )}
+                          </div>
+                          {duplicates.note && (
+                            <span className="text-gray-500 text-xs">{duplicates.note}</span>
+                          )}
+                        </div>
                       </div>
 
                       {/* Duplicate Groups */}
@@ -313,9 +347,22 @@ const PlexDuplicatesModal = ({ isOpen, onClose, service }) => {
                                             <span className="text-white ml-2">{item.bestQuality?.videoResolution || 'Unknown'}</span>
                                           </div>
                                           <div>
-                                            <span className="text-gray-400">Added:</span>
+                                            <span className="text-gray-400">
+                                              {item.videoFileCount ? `Files (${item.videoFileCount}):` : 'Added:'}
+                                            </span>
                                             <span className="text-white ml-2">
-                                              {item.addedAt ? new Date(item.addedAt).toLocaleDateString() : 'Unknown'}
+                                              {item.videoFileCount ? (
+                                                <span className="inline-flex items-center">
+                                                  {item.videoFileCount}
+                                                  {item.videoFileCount > 1 && (
+                                                    <span className="ml-1 px-1.5 py-0.5 bg-red-600 text-white text-xs rounded">
+                                                      MULTI
+                                                    </span>
+                                                  )}
+                                                </span>
+                                              ) : (
+                                                item.addedAt ? new Date(item.addedAt).toLocaleDateString() : 'Unknown'
+                                              )}
                                             </span>
                                           </div>
                                         </div>

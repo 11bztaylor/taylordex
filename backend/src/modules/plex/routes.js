@@ -4,6 +4,7 @@ const plexService = require('./service');
 const { query } = require('../../database/connection');
 const { authenticateToken, requireRole } = require('../../auth/middleware');
 const ServiceRepository = require('../../repositories/ServiceRepository');
+const plexDuplicateScheduler = require('../../schedulers/plexDuplicateScheduler');
 
 // Apply authentication to all routes
 router.use(authenticateToken);
@@ -78,10 +79,11 @@ router.get('/:id/stats', async (req, res) => {
   }
 });
 
-// Get duplicates for a specific Plex instance
+// Get duplicates for a specific Plex instance (cached results from background scan)
 router.get('/:id/duplicates', requireRole('user'), async (req, res) => {
   try {
     const { id } = req.params;
+    const { force_scan } = req.query;
     
     // Get service config using ServiceRepository
     const config = await ServiceRepository.getServiceWithCredentials(id, 'plex');
@@ -92,7 +94,24 @@ router.get('/:id/duplicates', requireRole('user'), async (req, res) => {
         error: 'Plex service not found'
       });
     }
-    const duplicates = await plexService.getDuplicates(config);
+
+    let duplicates;
+
+    if (force_scan === 'true') {
+      // Force a live scan (for testing or manual refresh)
+      console.log('🔍 Force scan requested, running live duplicate detection...');
+      duplicates = await plexService.getDuplicates(config);
+    } else {
+      // Use cached results for fast display
+      console.log('📊 Fetching cached duplicate results...');
+      duplicates = await plexDuplicateScheduler.getCachedDuplicates(id);
+      
+      // If no cached results exist, run a scan
+      if (!duplicates.success || duplicates.totalDuplicates === 0) {
+        console.log('⚠️ No cached results found, running live scan...');
+        duplicates = await plexService.getDuplicates(config);
+      }
+    }
 
     res.json({
       success: true,
@@ -102,13 +121,32 @@ router.get('/:id/duplicates', requireRole('user'), async (req, res) => {
         name: config.name,
         host: config.host,
         port: config.port
-      }
+      },
+      cached: force_scan !== 'true'
     });
   } catch (error) {
     console.error('Plex duplicates error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to get Plex duplicates'
+    });
+  }
+});
+
+// Trigger manual duplicate scan
+router.post('/:id/duplicates/scan', requireRole('admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    console.log('🔍 Manual duplicate scan requested for service:', id);
+    const result = await plexDuplicateScheduler.runManualScan(parseInt(id));
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Manual scan error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to start manual scan'
     });
   }
 });
