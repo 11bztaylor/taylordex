@@ -133,6 +133,39 @@ router.get('/:id/duplicates', requireRole('user'), async (req, res) => {
   }
 });
 
+// Investigate Plex native duplicate detection
+router.get('/:id/duplicates/investigate', requireRole('admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get service config using ServiceRepository
+    const config = await ServiceRepository.getServiceWithCredentials(id, 'plex');
+
+    if (!config) {
+      return res.status(404).json({
+        success: false,
+        error: 'Plex service not found'
+      });
+    }
+
+    console.log('🔬 Investigating Plex native duplicate detection capabilities...');
+    
+    // Run investigation
+    await plexService.checkNativeDuplicateAPIs(config);
+    
+    res.json({
+      success: true,
+      message: 'Check console logs for investigation results'
+    });
+  } catch (error) {
+    console.error('Investigation error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to investigate Plex APIs'
+    });
+  }
+});
+
 // Trigger manual duplicate scan
 router.post('/:id/duplicates/scan', requireRole('admin'), async (req, res) => {
   try {

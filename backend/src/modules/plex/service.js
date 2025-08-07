@@ -208,6 +208,9 @@ class PlexService extends BaseService {
     try {
       console.log(`Fetching Plex duplicates from ${config.host}:${config.port}`);
       
+      // First, try to check if Plex has native duplicate detection via collections
+      await this.checkNativeDuplicateAPIs(config);
+      
       // Get all libraries first
       const libraries = await this.apiCall(config, '/library/sections');
       const duplicatesByLibrary = {};
@@ -841,6 +844,94 @@ class PlexService extends BaseService {
     
     const maxLength = Math.max(str1.length, str2.length);
     return (maxLength - matrix[str2.length][str1.length]) / maxLength;
+  }
+
+  async checkNativeDuplicateAPIs(config) {
+    console.log('🔍 Checking for native Plex duplicate detection APIs...');
+    
+    try {
+      // Check if Plex has a native /duplicates endpoint (undocumented but worth trying)
+      try {
+        const duplicatesCheck = await this.apiCall(config, '/library/duplicates');
+        console.log('✅ Found native /library/duplicates endpoint:', duplicatesCheck);
+      } catch (e) {
+        console.log('❌ No native /library/duplicates endpoint found');
+      }
+
+      // Check for collections named "Dupe" or similar
+      const libraries = await this.apiCall(config, '/library/sections');
+      
+      if (libraries.MediaContainer?.Directory) {
+        for (const lib of libraries.MediaContainer.Directory) {
+          try {
+            // Check for collections in this library
+            const collections = await this.apiCall(config, `/library/sections/${lib.key}/collections`);
+            
+            if (collections.MediaContainer?.Metadata) {
+              for (const collection of collections.MediaContainer.Metadata) {
+                // Look for collections with "dupe" or "duplicate" in the name
+                if (collection.title && collection.title.toLowerCase().includes('dup')) {
+                  console.log(`📁 Found collection "${collection.title}" in ${lib.title}:`);
+                  
+                  // Get the items in this collection
+                  const collectionItems = await this.apiCall(config, `/library/metadata/${collection.ratingKey}/children`);
+                  
+                  if (collectionItems.MediaContainer?.Metadata) {
+                    console.log(`   - Contains ${collectionItems.MediaContainer.Metadata.length} items`);
+                    
+                    // Sample the first few items to understand the pattern
+                    const sampleItems = collectionItems.MediaContainer.Metadata.slice(0, 5);
+                    for (const item of sampleItems) {
+                      console.log(`   - "${item.title}" (${item.year || 'N/A'})`);
+                    }
+                  }
+                }
+              }
+            }
+            
+            // Also check for smart filters/collections
+            try {
+              const filters = await this.apiCall(config, `/library/sections/${lib.key}/filters`);
+              console.log(`📋 Available filters for ${lib.title}:`, filters.MediaContainer?.Type?.map(t => t.key).join(', '));
+            } catch (e) {
+              // Filters endpoint might not exist
+            }
+            
+            // Check if there's a duplicate filter option
+            try {
+              const allWithDuplicates = await this.apiCall(config, `/library/sections/${lib.key}/all?duplicate=1`);
+              if (allWithDuplicates.MediaContainer?.Metadata) {
+                console.log(`✅ Library ${lib.title} supports ?duplicate=1 filter - found ${allWithDuplicates.MediaContainer.Metadata.length} items`);
+              }
+            } catch (e) {
+              console.log(`❌ Library ${lib.title} does not support ?duplicate=1 filter`);
+            }
+            
+          } catch (e) {
+            // Collections might not exist for this library
+          }
+        }
+      }
+      
+      // Check server capabilities
+      try {
+        const capabilities = await this.apiCall(config, '/');
+        if (capabilities.MediaContainer) {
+          console.log('📊 Server capabilities:', {
+            version: capabilities.MediaContainer.version,
+            platform: capabilities.MediaContainer.platform,
+            multiuser: capabilities.MediaContainer.multiuser,
+            sync: capabilities.MediaContainer.sync,
+            premium: capabilities.MediaContainer.premium
+          });
+        }
+      } catch (e) {
+        console.log('Could not fetch server capabilities');
+      }
+      
+    } catch (error) {
+      console.error('Error checking native duplicate APIs:', error.message);
+    }
   }
 
   async detectMultipleVideoFiles(config, library) {
