@@ -14,9 +14,11 @@ import {
   EyeIcon,
   InformationCircleIcon
 } from '@heroicons/react/24/outline';
+import { useAuth } from '../../contexts/AuthContext';
 import apiClient from '../../api/client';
 
 const PlexDuplicatesModal = ({ isOpen, onClose, service }) => {
+  const { token } = useAuth(); // Get JWT token for authentication
   const [duplicates, setDuplicates] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedLibrary, setSelectedLibrary] = useState('all');
@@ -43,7 +45,14 @@ const PlexDuplicatesModal = ({ isOpen, onClose, service }) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/plex/${service.id}/duplicates`);
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`/api/plex/${service.id}/duplicates`, {
+        headers
+      });
       const data = await response.json();
       
       if (data.success) {
@@ -66,8 +75,14 @@ const PlexDuplicatesModal = ({ isOpen, onClose, service }) => {
 
     setDeleting(prev => new Set([...prev, ratingKey]));
     try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`/api/plex/${service.id}/duplicates/${ratingKey}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers
       });
       const data = await response.json();
       
