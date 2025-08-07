@@ -25,7 +25,7 @@ const PlexDuplicatesModal = ({ isOpen, onClose, service }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [deleting, setDeleting] = useState(new Set());
   const [error, setError] = useState(null);
-  const [versionSelection, setVersionSelection] = useState(null); // For selecting which version to delete
+  // const [versionSelection, setVersionSelection] = useState(null); // Disabled - deletion removed for safety
 
   const libraryIcons = {
     movie: FilmIcon,
@@ -435,16 +435,11 @@ const PlexDuplicatesModal = ({ isOpen, onClose, service }) => {
                                       </div>
                                       
                                       <button
-                                        onClick={() => deleteDuplicate(item.ratingKey, item.title)}
-                                        disabled={deleting.has(item.ratingKey)}
-                                        className="ml-4 p-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white rounded-lg transition-colors flex items-center"
-                                        title="Delete this duplicate"
+                                        disabled
+                                        className="ml-4 p-2 bg-gray-600 text-gray-400 rounded-lg cursor-not-allowed flex items-center"
+                                        title="Deletion temporarily disabled for safety - identification only"
                                       >
-                                        {deleting.has(item.ratingKey) ? (
-                                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                        ) : (
-                                          <TrashIcon className="w-4 h-4" />
-                                        )}
+                                        <EyeIcon className="w-4 h-4" />
                                       </button>
                                     </div>
                                   </div>
@@ -464,14 +459,14 @@ const PlexDuplicatesModal = ({ isOpen, onClose, service }) => {
                   ) : null}
                 </div>
 
-                {/* Warning */}
-                <div className="mt-6 bg-yellow-900/20 border border-yellow-600/30 rounded-lg p-4">
+                {/* Info Notice */}
+                <div className="mt-6 bg-blue-900/20 border border-blue-600/30 rounded-lg p-4">
                   <div className="flex items-start">
-                    <InformationCircleIcon className="w-5 h-5 text-yellow-400 mt-0.5 mr-2 flex-shrink-0" />
-                    <div className="text-sm text-yellow-300">
-                      <strong>Important:</strong> Deleting duplicates is permanent and cannot be undone. 
-                      Consider the file quality, size, and codec before deleting. 
-                      Higher resolution and better quality files are typically preferred.
+                    <InformationCircleIcon className="w-5 h-5 text-blue-400 mt-0.5 mr-2 flex-shrink-0" />
+                    <div className="text-sm text-blue-300">
+                      <strong>Identification Mode:</strong> This tool identifies duplicate media files in your Plex library. 
+                      Deletion functionality has been temporarily disabled for safety. Use this information to manually 
+                      manage duplicates through Plex's web interface or other tools.
                     </div>
                   </div>
                 </div>
@@ -481,77 +476,11 @@ const PlexDuplicatesModal = ({ isOpen, onClose, service }) => {
         </div>
       </Dialog>
 
-      {/* Version Selection Modal */}
+      {/* Version Selection Modal - Disabled for safety
       {versionSelection && (
-        <Dialog as="div" className="relative z-50" open={true} onClose={() => setVersionSelection(null)}>
-          <div className="fixed inset-0 bg-black/75" />
-          <div className="fixed inset-0 overflow-y-auto">
-            <div className="flex min-h-full items-center justify-center p-4">
-              <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-gray-900 border border-red-600 p-6 shadow-xl">
-                <div className="flex items-center mb-4">
-                  <ExclamationTriangleIcon className="w-6 h-6 text-red-400 mr-3" />
-                  <Dialog.Title as="h3" className="text-lg font-medium text-white">
-                    Select Version to Delete
-                  </Dialog.Title>
-                </div>
-                
-                <p className="text-gray-300 mb-4">
-                  "{versionSelection.itemTitle}" has multiple versions. Choose which one to delete:
-                </p>
-                
-                <div className="space-y-3 mb-6">
-                  {versionSelection.versions.map((version, index) => (
-                    <div key={version.id} className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="text-white font-medium">
-                            {version.totalParts > 1 ? 
-                              `Part ${version.partIndex}/${version.totalParts}: ${version.resolution}` :
-                              `Version ${index + 1}: ${version.resolution}`
-                            }
-                          </div>
-                          <div className="text-sm text-gray-400 mt-1">
-                            Quality Score: {version.qualityScore} • 
-                            Size: {formatFileSize(version.size)} • 
-                            Bitrate: {version.bitrate ? `${Math.round(version.bitrate / 1000)} Mbps` : 'Unknown'}
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            Media ID: {version.mediaId} • Part ID: {version.partId || 'N/A'}
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1 font-mono truncate">
-                            {version.file}
-                          </div>
-                          {index === 0 && (
-                            <div className="inline-flex items-center px-2 py-1 bg-red-600/20 text-red-400 text-xs rounded mt-2">
-                              Recommended for deletion (lowest quality)
-                            </div>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => deleteDuplicate(versionSelection.ratingKey, versionSelection.itemTitle, version.id)}
-                          disabled={deleting.has(versionSelection.ratingKey)}
-                          className="ml-4 px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white rounded transition-colors text-sm"
-                        >
-                          Delete This Version
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                <div className="flex justify-end space-x-3">
-                  <button
-                    onClick={() => setVersionSelection(null)}
-                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </Dialog.Panel>
-            </div>
-          </div>
-        </Dialog>
+        // Modal content removed - deletion functionality disabled
       )}
+      */}
     </Transition>
   );
 };

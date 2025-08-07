@@ -184,32 +184,15 @@ router.post('/:id/duplicates/scan', requireRole('admin'), async (req, res) => {
   }
 });
 
-// Delete a specific duplicate version (NOT the entire movie!)
+// Delete a specific duplicate version - DISABLED FOR SAFETY
 router.delete('/:id/duplicates/:ratingKey', requireRole('admin'), async (req, res) => {
-  try {
-    const { id, ratingKey } = req.params;
-    const { mediaId } = req.query; // Media ID is now required to prevent deleting all versions
-    
-    // Get service config using ServiceRepository
-    const config = await ServiceRepository.getServiceWithCredentials(id, 'plex');
-
-    if (!config) {
-      return res.status(404).json({
-        success: false,
-        error: 'Plex service not found'
-      });
-    }
-    
-    const deleteResult = await plexService.deleteDuplicate(config, ratingKey, mediaId);
-
-    res.json(deleteResult);
-  } catch (error) {
-    console.error('Plex delete duplicate error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to delete Plex duplicate'
-    });
-  }
+  // Deletion functionality temporarily disabled after accidental data loss
+  res.status(501).json({
+    success: false,
+    error: 'Deletion functionality temporarily disabled for safety. Use identification mode only.',
+    disabled: true,
+    reason: 'Preventing accidental data loss while improving deletion logic'
+  });
 });
 
 module.exports = router;

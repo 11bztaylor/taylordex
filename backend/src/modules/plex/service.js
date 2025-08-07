@@ -616,6 +616,8 @@ class PlexService extends BaseService {
     }
   }
 
+  // DISABLED: Deletion functionality temporarily removed for safety
+  // TODO: Implement safer deletion logic in future iteration
   async deleteDuplicate(config, ratingKey, mediaId) {
     try {
       console.log(`🚨 DELETION REQUEST - Rating Key: ${ratingKey}, Media ID: ${mediaId}`);
