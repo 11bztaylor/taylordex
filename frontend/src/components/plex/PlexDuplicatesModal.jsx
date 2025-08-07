@@ -505,12 +505,18 @@ const PlexDuplicatesModal = ({ isOpen, onClose, service }) => {
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="text-white font-medium">
-                            Version {index + 1}: {version.resolution}
+                            {version.totalParts > 1 ? 
+                              `Part ${version.partIndex}/${version.totalParts}: ${version.resolution}` :
+                              `Version ${index + 1}: ${version.resolution}`
+                            }
                           </div>
                           <div className="text-sm text-gray-400 mt-1">
                             Quality Score: {version.qualityScore} • 
                             Size: {formatFileSize(version.size)} • 
                             Bitrate: {version.bitrate ? `${Math.round(version.bitrate / 1000)} Mbps` : 'Unknown'}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            Media ID: {version.mediaId} • Part ID: {version.partId || 'N/A'}
                           </div>
                           <div className="text-xs text-gray-500 mt-1 font-mono truncate">
                             {version.file}

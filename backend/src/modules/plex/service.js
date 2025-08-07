@@ -633,12 +633,32 @@ class PlexService extends BaseService {
       
       console.log(`📽️ "${item.title}" has ${item.Media?.length || 0} version(s)`);
       
-      // Safety check: Don't delete if it's the only version
-      if (!item.Media || item.Media.length <= 1) {
-        console.error('⛔ SAFETY BLOCK: Cannot delete the only version of this media!');
+      // Count total video files across all versions
+      let totalVideoFiles = 0;
+      let totalParts = 0;
+      
+      if (item.Media) {
+        for (const media of item.Media) {
+          if (media.Part) {
+            for (const part of media.Part) {
+              totalParts++;
+              // Only count video files, not subtitle files
+              if (part.file && !part.file.match(/\.(srt|sub|idx|sup|ass|ssa)$/i)) {
+                totalVideoFiles++;
+              }
+            }
+          }
+        }
+      }
+      
+      console.log(`📊 Total video files: ${totalVideoFiles}, Total parts: ${totalParts}`);
+      
+      // CORRECTED SAFETY CHECK: Don't delete if removing this would leave the movie with no files
+      if (totalVideoFiles <= 1) {
+        console.error('⛔ SAFETY BLOCK: Cannot delete - this would remove all video files for this media!');
         return {
           success: false,
-          error: 'Cannot delete the only version of this media. This would remove the entire movie/show from your library.',
+          error: 'Cannot delete - this is the only video file for this media. Deletion would remove the entire movie/show from your library.',
           safetyBlock: true
         };
       }
@@ -647,18 +667,77 @@ class PlexService extends BaseService {
         // Delete specific media version by ID
         console.log(`🗑️ Deleting specific media version ID: ${mediaId}`);
         
-        // Find the specific media version
-        const mediaToDelete = item.Media.find(m => m.id === parseInt(mediaId));
-        if (!mediaToDelete) {
-          throw new Error(`Media version ${mediaId} not found`);
+        // Find the specific part to delete (could be media ID or part ID)
+        let partToDelete = null;
+        let mediaToDelete = null;
+        
+        // First try to find by media ID
+        for (const media of item.Media) {
+          if (media.id === parseInt(mediaId)) {
+            mediaToDelete = media;
+            partToDelete = media.Part?.[0]; // Get first part of this media
+            break;
+          }
+        }
+        
+        // If not found by media ID, try to find by part ID
+        if (!partToDelete) {
+          for (const media of item.Media) {
+            if (media.Part) {
+              for (const part of media.Part) {
+                if (part.id === parseInt(mediaId)) {
+                  partToDelete = part;
+                  mediaToDelete = media;
+                  break;
+                }
+              }
+              if (partToDelete) break;
+            }
+          }
+        }
+        
+        if (!partToDelete) {
+          throw new Error(`Media/Part ID ${mediaId} not found`);
         }
         
         // Log what we're about to delete for safety
-        console.log(`   - Deleting: ${mediaToDelete.videoResolution || 'Unknown'} - ${mediaToDelete.width}x${mediaToDelete.height} - ${(mediaToDelete.bitrate / 1000).toFixed(0)} Mbps`);
-        console.log(`   - File: ${mediaToDelete.Part?.[0]?.file || 'Unknown file'}`);
+        console.log(`   - Deleting: ${mediaToDelete?.videoResolution || 'Unknown'} - ${mediaToDelete?.width}x${mediaToDelete?.height}`);
+        console.log(`   - File: ${partToDelete.file || 'Unknown file'}`);
+        console.log(`   - Part ID: ${partToDelete.id}, Media ID: ${mediaToDelete?.id}`);
         
-        // Delete the specific media version
-        await this.apiCall(config, `/library/metadata/${ratingKey}/media/${mediaId}`, 'DELETE');
+        // Try multiple deletion approaches
+        let deleteSuccess = false;
+        let deleteError = null;
+        
+        // Method 1: Delete by part ID (most specific)
+        if (partToDelete.id) {
+          try {
+            console.log(`🗑️ Attempting part deletion: /library/parts/${partToDelete.id}`);
+            await this.apiCall(config, `/library/parts/${partToDelete.id}`, 'DELETE');
+            deleteSuccess = true;
+            console.log(`✅ Successfully deleted part ${partToDelete.id}`);
+          } catch (e) {
+            deleteError = e.message;
+            console.log(`❌ Part deletion failed: ${e.message}`);
+          }
+        }
+        
+        // Method 2: Delete by media ID (if part deletion failed)
+        if (!deleteSuccess && mediaToDelete?.id) {
+          try {
+            console.log(`🗑️ Attempting media deletion: /library/metadata/${ratingKey}/media/${mediaToDelete.id}`);
+            await this.apiCall(config, `/library/metadata/${ratingKey}/media/${mediaToDelete.id}`, 'DELETE');
+            deleteSuccess = true;
+            console.log(`✅ Successfully deleted media ${mediaToDelete.id}`);
+          } catch (e) {
+            deleteError = e.message;
+            console.log(`❌ Media deletion failed: ${e.message}`);
+          }
+        }
+        
+        if (!deleteSuccess) {
+          throw new Error(`Failed to delete: ${deleteError}`);
+        }
         
         console.log(`✅ Successfully deleted media version ${mediaId}`);
         
@@ -673,18 +752,43 @@ class PlexService extends BaseService {
         console.error('⚠️ No media ID specified - listing available versions:');
         
         const versions = [];
+        
         for (const media of item.Media) {
           const quality = this.calculateQualityScore(media);
-          versions.push({
-            id: media.id,
-            resolution: media.videoResolution || 'Unknown',
-            size: media.Part?.[0]?.size || 0,
-            bitrate: media.bitrate,
-            file: media.Part?.[0]?.file,
-            qualityScore: quality
-          });
           
-          console.log(`   Version ${media.id}: ${media.videoResolution} - Score: ${quality}`);
+          // If media has multiple parts, list each part separately
+          if (media.Part && media.Part.length > 1) {
+            media.Part.forEach((part, partIndex) => {
+              versions.push({
+                id: part.id || media.id, // Use part ID if available, otherwise media ID
+                mediaId: media.id,
+                partId: part.id,
+                resolution: media.videoResolution || 'Unknown',
+                size: part.size || 0,
+                bitrate: media.bitrate,
+                file: part.file,
+                qualityScore: quality,
+                partIndex: partIndex + 1,
+                totalParts: media.Part.length
+              });
+            });
+          } else {
+            // Single part per media
+            versions.push({
+              id: media.id,
+              mediaId: media.id,
+              partId: media.Part?.[0]?.id,
+              resolution: media.videoResolution || 'Unknown',
+              size: media.Part?.[0]?.size || 0,
+              bitrate: media.bitrate,
+              file: media.Part?.[0]?.file,
+              qualityScore: quality,
+              partIndex: 1,
+              totalParts: 1
+            });
+          }
+          
+          console.log(`   Media ${media.id}: ${media.videoResolution} - ${media.Part?.length || 0} part(s) - Score: ${quality}`);
         }
         
         // Sort by quality (lowest first for potential deletion)
