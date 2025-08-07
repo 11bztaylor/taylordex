@@ -268,11 +268,8 @@ class PlexService extends BaseService {
                       thumb: metadata.thumb,
                       files: files,
                       totalSize: files.reduce((sum, f) => sum + (f.size || 0), 0),
-                      bestQuality: files.reduce((best, current) => {
-                        const currentRes = this.parseResolution(current.videoResolution);
-                        const bestRes = this.parseResolution(best?.videoResolution);
-                        return currentRes > bestRes ? current : best;
-                      }, files[0])
+                      bestQuality: this.getBestQualityFile(files),
+                      worstQuality: this.getWorstQualityFile(files)
                     };
                   } catch (detailError) {
                     console.error(`Error fetching details for ${item.ratingKey}:`, detailError.message);
@@ -412,10 +409,15 @@ class PlexService extends BaseService {
       if (duplicateGroups.length > 0) {
         console.log(`Found ${duplicateGroups.length} potential duplicate groups in ${library.title}`);
         
+        // Sort by number of duplicates (highest first) to prioritize items with most copies
+        duplicateGroups.sort((a, b) => b.items.length - a.items.length);
+        
+        console.log(`Duplicate counts: ${duplicateGroups.map(g => `"${g.title}" (${g.items.length} copies)`).slice(0, 5).join(', ')}`);
+        
         // Get detailed info for each duplicate
         const detailedDuplicates = [];
         
-        for (const group of duplicateGroups.slice(0, 20)) { // Limit to first 20 groups to avoid timeout
+        for (const group of duplicateGroups.slice(0, 25)) { // Increased to 25 groups to catch more
           try {
             const detailedItems = await Promise.all(
               group.items.map(async (item) => {
@@ -443,10 +445,19 @@ class PlexService extends BaseService {
                     }
                   }
                   
+                  // Calculate quality scores for each file
+                  const filesWithScores = files.map(file => ({
+                    ...file,
+                    qualityScore: this.calculateQualityScore(file)
+                  }));
+                  
                   return {
                     ...item,
-                    files: files,
-                    totalSize: files.reduce((sum, f) => sum + (f.size || 0), 0)
+                    files: filesWithScores,
+                    totalSize: files.reduce((sum, f) => sum + (f.size || 0), 0),
+                    bestQuality: this.getBestQualityFile(files),
+                    worstQuality: this.getWorstQualityFile(files),
+                    qualityRange: `${this.getWorstQualityFile(files)?.videoResolution || 'Unknown'} - ${this.getBestQualityFile(files)?.videoResolution || 'Unknown'}`
                   };
                 } catch (detailError) {
                   console.error(`Error getting details for item ${item.ratingKey}:`, detailError.message);
@@ -455,12 +466,50 @@ class PlexService extends BaseService {
               })
             );
             
+            // Sort items by quality score (best first)
+            detailedItems.sort((a, b) => {
+              const aScore = a.bestQuality ? this.calculateQualityScore(a.bestQuality) : 0;
+              const bScore = b.bestQuality ? this.calculateQualityScore(b.bestQuality) : 0;
+              return bScore - aScore;
+            });
+            
+            // Calculate comprehensive duplicate group statistics
+            const totalSize = detailedItems.reduce((sum, item) => sum + (item.totalSize || 0), 0);
+            const averageSize = totalSize / detailedItems.length;
+            const qualityScores = detailedItems.map(item => 
+              item.bestQuality ? this.calculateQualityScore(item.bestQuality) : 0
+            );
+            const avgQualityScore = qualityScores.reduce((sum, score) => sum + score, 0) / qualityScores.length;
+            
+            // Find potential deletion candidates (lowest quality items)
+            const suggestedDeletions = detailedItems
+              .slice(1) // Keep the best quality one
+              .filter(item => {
+                const itemScore = item.bestQuality ? this.calculateQualityScore(item.bestQuality) : 0;
+                return itemScore < avgQualityScore * 0.8; // Suggest items that are significantly below average
+              });
+            
             detailedDuplicates.push({
               title: group.title,
               year: group.year,
               items: detailedItems,
-              totalSize: detailedItems.reduce((sum, item) => sum + (item.totalSize || 0), 0),
-              duplicateCount: detailedItems.length
+              duplicateCount: detailedItems.length,
+              totalSize: totalSize,
+              averageSize: averageSize,
+              qualityAnalysis: {
+                averageScore: Math.round(avgQualityScore),
+                bestItem: detailedItems[0], // First item after sorting by quality
+                worstItem: detailedItems[detailedItems.length - 1],
+                qualityRange: qualityScores.length > 1 ? 
+                  `${Math.min(...qualityScores)}-${Math.max(...qualityScores)}` : 
+                  qualityScores[0]?.toString() || '0'
+              },
+              suggestions: {
+                deletionCandidates: suggestedDeletions.length,
+                potentialSavings: suggestedDeletions.reduce((sum, item) => sum + (item.totalSize || 0), 0),
+                recommendation: detailedItems.length >= 5 ? 'HIGH_PRIORITY' : 
+                              detailedItems.length >= 3 ? 'MEDIUM_PRIORITY' : 'LOW_PRIORITY'
+              }
             });
           } catch (groupError) {
             console.error(`Error processing duplicate group ${group.title}:`, groupError.message);
@@ -478,6 +527,18 @@ class PlexService extends BaseService {
           };
           
           console.log(`✅ Found ${detailedDuplicates.length} duplicate groups in ${library.title} using manual detection`);
+          
+          // Log detailed statistics
+          const highPriority = detailedDuplicates.filter(d => d.suggestions.recommendation === 'HIGH_PRIORITY').length;
+          const mediumPriority = detailedDuplicates.filter(d => d.suggestions.recommendation === 'MEDIUM_PRIORITY').length;
+          const totalPotentialSavings = detailedDuplicates.reduce((sum, d) => sum + d.suggestions.potentialSavings, 0);
+          const savingsGB = (totalPotentialSavings / (1024 * 1024 * 1024)).toFixed(1);
+          
+          console.log(`📊 Duplicate statistics for ${library.title}:`);
+          console.log(`   - High priority (5+ copies): ${highPriority} groups`);
+          console.log(`   - Medium priority (3-4 copies): ${mediumPriority} groups`);
+          console.log(`   - Potential space savings: ${savingsGB} GB`);
+          console.log(`   - Top duplicates: ${detailedDuplicates.slice(0, 3).map(d => `"${d.title}" (${d.duplicateCount} copies)`).join(', ')}`);
         }
       } else {
         console.log(`No duplicates found in ${library.title} using manual detection`);
@@ -510,16 +571,102 @@ class PlexService extends BaseService {
 
   parseResolution(resolution) {
     if (!resolution) return 0;
+    const resStr = resolution.toLowerCase();
     const resMap = {
       '4k': 2160,
+      'uhd': 2160,
       '2160p': 2160,
+      '2160': 2160,
+      '1440p': 1440,
+      '1440': 1440,
       '1080p': 1080,
+      '1080': 1080,
+      'fhd': 1080,
       '720p': 720,
+      '720': 720,
+      'hd': 720,
+      '576p': 576,
+      '576': 576,
       '480p': 480,
+      '480': 480,
+      'sd': 480,
       '360p': 360,
-      'sd': 480
+      '360': 360,
+      '240p': 240,
+      '240': 240
     };
-    return resMap[resolution.toLowerCase()] || 0;
+    return resMap[resStr] || 0;
+  }
+
+  calculateQualityScore(mediaFile) {
+    let score = 0;
+    
+    // Resolution score (0-100)
+    const resolution = this.parseResolution(mediaFile.videoResolution);
+    if (resolution >= 2160) score += 100; // 4K
+    else if (resolution >= 1080) score += 80; // 1080p
+    else if (resolution >= 720) score += 60; // 720p
+    else if (resolution >= 480) score += 40; // 480p
+    else score += 20; // Lower
+    
+    // Bitrate score (0-50) - higher bitrate usually means better quality
+    const bitrate = mediaFile.bitrate || 0;
+    if (bitrate >= 20000) score += 50; // Very high bitrate (20+ Mbps)
+    else if (bitrate >= 10000) score += 40; // High bitrate (10-20 Mbps)
+    else if (bitrate >= 5000) score += 30; // Medium bitrate (5-10 Mbps)
+    else if (bitrate >= 2000) score += 20; // Low bitrate (2-5 Mbps)
+    else if (bitrate > 0) score += 10; // Very low bitrate
+    
+    // File size score (0-25) - larger files often indicate better quality
+    const size = mediaFile.size || 0;
+    const sizeGB = size / (1024 * 1024 * 1024);
+    if (sizeGB >= 20) score += 25; // Very large file (20GB+)
+    else if (sizeGB >= 10) score += 20; // Large file (10-20GB)
+    else if (sizeGB >= 5) score += 15; // Medium file (5-10GB)
+    else if (sizeGB >= 2) score += 10; // Small file (2-5GB)
+    else if (sizeGB > 0) score += 5; // Very small file
+    
+    // Container bonus (0-15) - some containers are preferred
+    const container = (mediaFile.container || '').toLowerCase();
+    if (container === 'mkv') score += 15; // MKV often highest quality
+    else if (container === 'mp4') score += 12; // MP4 good quality and compatibility
+    else if (container === 'avi') score += 8; // AVI older but can be good
+    else if (container === 'mov') score += 10; // MOV good quality
+    else if (container) score += 5; // Any other container
+    
+    // Audio channels bonus (0-10)
+    const audioChannels = mediaFile.audioChannels || 0;
+    if (audioChannels >= 8) score += 10; // 7.1+ surround
+    else if (audioChannels >= 6) score += 8; // 5.1 surround  
+    else if (audioChannels >= 2) score += 5; // Stereo
+    else if (audioChannels > 0) score += 2; // Mono
+    
+    return Math.min(score, 200); // Cap at 200 points
+  }
+
+  getBestQualityFile(files) {
+    if (!files || files.length === 0) return null;
+    
+    return files.reduce((best, current) => {
+      const bestScore = this.calculateQualityScore(best);
+      const currentScore = this.calculateQualityScore(current);
+      
+      // Add debug logging for quality comparison
+      console.log(`Quality comparison: "${current.file}" score: ${currentScore} vs "${best.file}" score: ${bestScore}`);
+      
+      return currentScore > bestScore ? current : best;
+    });
+  }
+
+  getWorstQualityFile(files) {
+    if (!files || files.length === 0) return null;
+    
+    return files.reduce((worst, current) => {
+      const worstScore = this.calculateQualityScore(worst);
+      const currentScore = this.calculateQualityScore(current);
+      
+      return currentScore < worstScore ? current : worst;
+    });
   }
 }
 
