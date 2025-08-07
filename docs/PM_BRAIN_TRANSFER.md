@@ -152,6 +152,10 @@ When you start the next session:
 3. **Background scheduler runs at 3 AM - check logs if issues**
 4. **Some Plex servers don't have /duplicates endpoint**
 5. **Always use ServiceRepository for database queries**
+6. **🚨 GIT PUSH BLOCKED**: GitHub detects node_modules/ssh2 test key as secret
+   - All changes are committed locally but NOT pushed to remote
+   - Need to clean up node_modules from git history before pushing
+   - Use: `git rm -r --cached backend/node_modules/` then commit and push
 
 ---
 
