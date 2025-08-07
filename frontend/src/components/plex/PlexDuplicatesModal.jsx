@@ -34,10 +34,10 @@ const PlexDuplicatesModal = ({ isOpen, onClose, service }) => {
   };
 
   useEffect(() => {
-    if (isOpen && service) {
+    if (isOpen && service?.id) {
       fetchDuplicates();
     }
-  }, [isOpen, service]);
+  }, [isOpen, service?.id]); // Only depend on service ID, not the entire service object
 
   const fetchDuplicates = async () => {
     if (!service?.id) return;
