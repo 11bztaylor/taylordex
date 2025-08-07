@@ -1,5 +1,6 @@
 const { query } = require('../database/connection');
 const logger = require('./logger');
+const ServiceRepository = require('../repositories/ServiceRepository');
 
 class StatsCollector {
   constructor() {
@@ -43,16 +44,8 @@ class StatsCollector {
 
   async collectAllStats() {
     try {
-      // CRITICAL: ALWAYS include api_key in SELECT - without it, Radarr/Sonarr/etc will get 401 errors
-      const servicesResult = await query('SELECT id, name, type, host, port, api_key FROM services WHERE enabled = true');
-      const services = servicesResult.rows;
-      
-      // CRITICAL: Verify that API keys are being fetched for all services that need them
-      const servicesNeedingApiKeys = services.filter(s => ['radarr', 'sonarr', 'lidarr', 'prowlarr', 'plex'].includes(s.type));
-      const missingApiKeys = servicesNeedingApiKeys.filter(s => !s.api_key);
-      if (missingApiKeys.length > 0) {
-        logger.error('🚨 CRITICAL: Services missing API keys:', missingApiKeys.map(s => `${s.name} (${s.type})`));
-      }
+      // Use centralized ServiceRepository - ensures API keys are ALWAYS included
+      const services = await ServiceRepository.getServicesForAuthentication({ enabled: true });
 
       logger.debug(`📊 Collecting stats for ${services.length} services`);
 

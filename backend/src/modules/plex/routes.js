@@ -3,6 +3,7 @@ const router = express.Router();
 const plexService = require('./service');
 const { query } = require('../../database/connection');
 const { authenticateToken, requireRole } = require('../../auth/middleware');
+const ServiceRepository = require('../../repositories/ServiceRepository');
 
 // Apply authentication to all routes
 router.use(authenticateToken);
@@ -41,20 +42,15 @@ router.get('/:id/stats', async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Get service config from database
-    const result = await query(
-      'SELECT * FROM services WHERE id = $1 AND type = $2',
-      [id, 'plex']
-    );
+    // Get service config using ServiceRepository
+    const config = await ServiceRepository.getServiceWithCredentials(id, 'plex');
 
-    if (result.rows.length === 0) {
+    if (!config) {
       return res.status(404).json({
         success: false,
         error: 'Plex service not found'
       });
     }
-
-    const config = result.rows[0];
     const stats = await plexService.getStats(config);
 
     // Cache stats in database
@@ -87,20 +83,15 @@ router.get('/:id/duplicates', requireRole('user'), async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Get service config from database
-    const result = await query(
-      'SELECT * FROM services WHERE id = $1 AND type = $2',
-      [id, 'plex']
-    );
+    // Get service config using ServiceRepository
+    const config = await ServiceRepository.getServiceWithCredentials(id, 'plex');
 
-    if (result.rows.length === 0) {
+    if (!config) {
       return res.status(404).json({
         success: false,
         error: 'Plex service not found'
       });
     }
-
-    const config = result.rows[0];
     const duplicates = await plexService.getDuplicates(config);
 
     res.json({
@@ -127,20 +118,15 @@ router.delete('/:id/duplicates/:ratingKey', requireRole('admin'), async (req, re
   try {
     const { id, ratingKey } = req.params;
     
-    // Get service config from database
-    const result = await query(
-      'SELECT * FROM services WHERE id = $1 AND type = $2',
-      [id, 'plex']
-    );
+    // Get service config using ServiceRepository
+    const config = await ServiceRepository.getServiceWithCredentials(id, 'plex');
 
-    if (result.rows.length === 0) {
+    if (!config) {
       return res.status(404).json({
         success: false,
         error: 'Plex service not found'
       });
     }
-
-    const config = result.rows[0];
     const deleteResult = await plexService.deleteDuplicate(config, ratingKey);
 
     res.json(deleteResult);
